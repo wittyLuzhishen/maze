@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷宫探索</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-header">
+        <div id="ui">
+            <div class="ui-element">关卡: <span id="level-count">1</span></div>
+            <div class="ui-element">火把数量: <span id="torch-count">1</span></div>
+            <div class="ui-element">火把寿命: <span id="torch-time">30</span>秒</div>
+            <div class="ui-element">关卡用时: <span id="level-time">0</span>秒</div>
+            <div class="ui-element">钥匙: <span id="key-status">未找到</span></div>
+        </div>
+    </div>
+    
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="start-screen">
+            <h1>迷宫探索</h1>
+            <p>你被困在一个黑暗的迷宫中，只有火把能照亮前方的道路。收集额外的火把，寻找钥匙打开大门，逃出迷宫！</p>
+            <button id="start-button">开始游戏</button>
+            <div id="instructions">
+                <h3>操作说明：</h3>
+                <p>使用WASD或方向键移动角色<br>
+                火把会自动照亮周围区域<br>
+                收集火把增加照明时间<br>
+                找到钥匙打开大门</p>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="game.js"></script>
+</body>
+</html>
