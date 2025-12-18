@@ -186,9 +186,22 @@ export function updateTorchTime(deltaTime, ctx) {
                 player.torchTime = CONFIG.TORCH_BURN_TIME;
             } else {
                 // 没有备用火把，游戏结束
-                showMazeFullView(ctx);
-                alert('火把熄灭了！你迷失在黑暗中...');
-                restartGame();
+                // 立即调用showMazeFullView，不使用setTimeout
+                showMazeFullView();
+                
+                // 添加用户交互监听器
+                const handleUserInteraction = () => {
+                    // 移除事件监听器
+                    document.removeEventListener('keydown', handleUserInteraction);
+                    document.removeEventListener('click', handleUserInteraction);
+                    
+                    alert('火把熄灭了！你迷失在黑暗中...');
+                    restartGame();
+                };
+                
+                // 监听键盘和鼠标事件
+                document.addEventListener('keydown', handleUserInteraction);
+                document.addEventListener('click', handleUserInteraction);
             }
         }
     }

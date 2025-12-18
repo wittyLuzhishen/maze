@@ -69,6 +69,9 @@ function startGame() {
     // 最后设置游戏状态为正在播放
     gameState.isPlaying = true;
     
+    // 启动游戏循环
+    startGameLoop();
+    
     // 更新UI
     updateUI();
 }
@@ -94,6 +97,50 @@ function update(deltaTime) {
 function render() {
     // 如果游戏没有开始，不渲染游戏内容
     if (!gameState.isPlaying) {
+        // 如果需要显示迷宫全貌，则显示迷宫全貌
+        if (gameState.showFullMaze) {
+            // 清空画布为白色背景
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 渲染迷宫
+            renderMaze(ctx);
+            
+            // 渲染玩家位置（用红色标记）
+            const player = gameState.player;
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 渲染门位置（用绿色标记）
+            if (gameState.door) {
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(
+                    gameState.door.x * CONFIG.TILE_SIZE,
+                    gameState.door.y * CONFIG.TILE_SIZE,
+                    CONFIG.TILE_SIZE,
+                    CONFIG.TILE_SIZE
+                );
+            }
+            
+            // 渲染钥匙位置（用黄色标记）
+            if (gameState.key) {
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(gameState.key.x, gameState.key.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // 添加提示信息
+            ctx.fillStyle = '#000000';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('按任意键或点击鼠标继续', canvas.width / 2, canvas.height - 20);
+            
+            return;
+        }
+        
         // 清空画布为黑色
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -122,8 +169,8 @@ function render() {
     // 将临时画布绘制到主画布上
     ctx.drawImage(tempCanvas, 0, 0);
     
-    // 只有在玩家位置有效时才绘制照明效果
-    if (gameState.player.x > 0 && gameState.player.y > 0) {
+    // 只有在玩家位置有效且不需要显示迷宫全貌时才绘制照明效果
+    if (gameState.player.x > 0 && gameState.player.y > 0 && !gameState.showFullMaze) {
         // 绘制黑色遮罩，只保留玩家周围的亮区
         ctx.globalCompositeOperation = 'destination-out';
         
@@ -146,15 +193,51 @@ function render() {
 }
 
 // 游戏主循环
+let gameLoopId = null;
+
 function gameLoop(timestamp) {
+    // 如果游戏结束，停止循环
+    if (!gameState.isPlaying) {
+        // 取消动画帧请求
+        if (gameLoopId) {
+            cancelAnimationFrame(gameLoopId);
+            gameLoopId = null;
+        }
+        
+        // 如果显示迷宫全貌，立即渲染一次
+        if (gameState.showFullMaze) {
+            render();
+        }
+        
+        return; // 停止游戏循环
+    }
+    
     // 计算时间差
     const deltaTime = timestamp - gameState.lastUpdateTime;
     gameState.lastUpdateTime = timestamp;
     
     update(deltaTime);
     render();
-    requestAnimationFrame(gameLoop);
+    gameLoopId = requestAnimationFrame(gameLoop);
 }
+
+// 启动游戏循环
+function startGameLoop() {
+    gameState.lastUpdateTime = performance.now();
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+// 停止游戏循环
+function stopGameLoop() {
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+    }
+    gameState.isPlaying = false;
+}
+
+// 导出函数供其他模块使用
+export { stopGameLoop };
 
 // 页面加载完成后初始化游戏
 window.addEventListener('load', initGame);

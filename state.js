@@ -2,6 +2,7 @@
 export let gameState = {
     isPlaying: false,
     hasStartedMoving: false,  // 玩家是否已经开始移动
+    showFullMaze: false,      // 是否显示迷宫全貌
     lastUpdateTime: 0,        // 上次更新的时间
     currentLevel: 1,         // 当前关卡
     startTime: 0,            // 关卡开始时间

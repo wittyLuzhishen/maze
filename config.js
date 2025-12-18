@@ -58,7 +58,7 @@ export const CONFIG = {
     MAZE_WIDTH: 20,  // 迷宫宽度（格子数）
     MAZE_HEIGHT: 15, // 迷宫高度（格子数）
     PLAYER_SPEED: 4,
-    PLAYER_SIZE: 39,  // 玩家尺寸（宽/高），通道宽度减1
+    PLAYER_SIZE: 30,  // 玩家尺寸（宽/高），小于通道宽度，确保角色在通道内
     TORCH_LIGHT_RADIUS: 100, // 火把照明半径
     INITIAL_TORCHES: 1,      // 初始火把数量
     TORCH_BURN_TIME: 30,     // 每个火把的燃烧时间（秒）

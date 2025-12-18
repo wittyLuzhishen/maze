@@ -3,6 +3,7 @@ import { CONFIG, COLORS, ENUMS } from './config.js';
 import { gameState, keysPressed } from './state.js';
 import { renderMaze } from './maze.js';
 import { renderItems } from './items.js';
+import { stopGameLoop } from './game.js';
 
 // 更新玩家位置
 export function updatePlayer(deltaTime, ctx) {
@@ -51,19 +52,38 @@ export function updatePlayer(deltaTime, ctx) {
 // 墙壁碰撞检测
 export function isWallCollision(x, y) {
     const tileSize = CONFIG.TILE_SIZE;
+    const playerSize = CONFIG.PLAYER_SIZE;
     
-    // 计算玩家中心所在的格子
-    const centerGridX = Math.floor(x / tileSize);
-    const centerGridY = Math.floor(y / tileSize);
+    // 计算玩家正方形区域的四个角
+    const left = x - playerSize / 2;
+    const right = x + playerSize / 2;
+    const top = y - playerSize / 2;
+    const bottom = y + playerSize / 2;
     
-    // 检查玩家是否在迷宫边界内
-    if (centerGridX < 0 || centerGridX >= CONFIG.MAZE_WIDTH || centerGridY < 0 || centerGridY >= CONFIG.MAZE_HEIGHT) {
-        return true;
+    // 检查玩家正方形区域的所有四个角
+    const corners = [
+        { x: left, y: top },      // 左上角
+        { x: right, y: top },     // 右上角
+        { x: left, y: bottom },   // 左下角
+        { x: right, y: bottom }   // 右下角
+    ];
+    
+    for (const corner of corners) {
+        const gridX = Math.floor(corner.x / tileSize);
+        const gridY = Math.floor(corner.y / tileSize);
+        
+        // 检查是否在迷宫边界内
+        if (gridX < 0 || gridX >= CONFIG.MAZE_WIDTH || gridY < 0 || gridY >= CONFIG.MAZE_HEIGHT) {
+            return true;
+        }
+        
+        // 检查是否碰到墙壁
+        if (gameState.maze[gridY][gridX] === 1) {
+            return true;
+        }
     }
     
-    // 只检查玩家中心所在的格子是否是墙壁
-    // 这样玩家可以顺利通过通道
-    return gameState.maze[centerGridY][centerGridX] === 1;
+    return false;
 }
 
 // 检查火把收集
@@ -108,9 +128,22 @@ export function checkDoorCollision(ctx) {
     
     if (distance < CONFIG.TILE_SIZE / 2 && player.hasKey) {
         // 玩家找到钥匙并到达门口，游戏胜利
-        showMazeFullView(ctx);
-        alert('恭喜！你成功逃出了迷宫！');
-        restartGame();
+        // 立即调用showMazeFullView，不使用setTimeout
+        showMazeFullView();
+        
+        // 添加用户交互监听器
+        const handleUserInteraction = () => {
+            // 移除事件监听器
+            document.removeEventListener('keydown', handleUserInteraction);
+            document.removeEventListener('click', handleUserInteraction);
+            
+            alert('恭喜！你成功逃出了迷宫！');
+            restartGame();
+        };
+        
+        // 监听键盘和鼠标事件
+        document.addEventListener('keydown', handleUserInteraction);
+        document.addEventListener('click', handleUserInteraction);
     }
 }
 
@@ -181,20 +214,24 @@ export function renderPlayer(ctx) {
 }
 
 // 展示迷宫全貌（去除黑暗）
-export function showMazeFullView(ctx) {
-    // 渲染整个迷宫，不应用照明效果
-    renderMaze(ctx);
-    renderItems(ctx);
-    renderPlayer(ctx);
+export function showMazeFullView() {
+    console.log("显示迷宫全貌开始");
     
-    // 停止游戏循环，保留当前画面
+    // 设置游戏状态标志
+    gameState.showFullMaze = true;
     gameState.isPlaying = false;
+    
+    // 停止游戏循环
+    stopGameLoop();
+    
+    console.log("迷宫全貌显示完成");
 }
 
 // 重启游戏
 export function restartGame() {
     gameState.isPlaying = false;
     gameState.hasStartedMoving = false;  // 重置移动标志
+    gameState.showFullMaze = false;       // 重置迷宫全貌显示标志
     gameState.startTime = 0;            // 重置关卡开始时间
     gameState.elapsedTime = 0;          // 重置关卡用时
     gameState.player = {
