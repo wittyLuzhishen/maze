@@ -307,6 +307,12 @@ export function updateTorchTime(deltaTime, ctx) {
                 
                 // 添加用户交互监听器
                 const handleUserInteraction = async () => {
+                    // 检查是否有对话框正在显示
+                    const dialog = document.getElementById('custom-dialog');
+                    if (!dialog.classList.contains('hidden')) {
+                        return; // 如果有对话框显示，不执行操作
+                    }
+                    
                     // 移除事件监听器
                     document.removeEventListener('keydown', handleUserInteraction);
                     document.removeEventListener('click', handleUserInteraction);

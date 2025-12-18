@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷宫生成算法测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .console {
+            background-color: #1e1e1e;
+            color: #dcdcdc;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            height: 500px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 15px 0;
+        }
+        
+        .maze-visualization {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .maze-visualization h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        #mazeCanvas {
+            margin: 0 auto;
+            display: block;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .wall-block {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            background-color: black;
+        }
+        .path-block {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            background-color: white;
+            border: 1px solid #ccc;
+        }
+        .info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>迷宫生成算法测试</h1>
+    
+    <div class="test-container">
+        <div class="info">
+            <p><strong>说明：</strong>这个测试页面会运行真实的迷宫生成算法，并验证其正确性。</p>
+            <p>算法使用递归回溯法生成完美迷宫，然后随机移除部分墙壁形成回路。</p>
+            <p>您可以选择运行"真实迷宫测试"或"综合迷宫测试"。综合测试包含更多测试用例和更详细的验证。</p>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <span class="wall-block"></span>
+                <span>墙壁</span>
+            </div>
+            <div class="legend-item">
+                <span class="path-block"></span>
+                <span>通路</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="runRealTest()">运行真实迷宫测试</button>
+            <button onclick="runComprehensiveTest()">运行综合迷宫测试</button>
+            <button onclick="runVisualTest()">运行可视化迷宫测试</button>
+            <button onclick="clearConsole()">清空控制台</button>
+        </div>
+        
+        <!-- 迷宫可视化区域 -->
+        <div class="maze-visualization">
+            <h3>生成的迷宫可视化</h3>
+            <canvas id="mazeCanvas" width="600" height="400" style="border: 1px solid #ccc; background-color: #fff;"></canvas>
+        </div>
+        
+        <div id="console" class="console">点击"运行真实迷宫测试"按钮开始测试...</div>
+    </div>
+
+    <script>
+        // 保存原始的console方法
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const consoleElement = document.getElementById('console');
+        
+        // 重写console方法，将输出显示在页面上
+        console.log = function(message) {
+            originalLog.apply(console, arguments);
+            appendToConsole(message, 'log');
+        };
+        
+        console.error = function(message) {
+            originalError.apply(console, arguments);
+            appendToConsole('❌ ' + message, 'error');
+        };
+        
+        console.warn = function(message) {
+            originalWarn.apply(console, arguments);
+            appendToConsole('⚠ ' + message, 'warn');
+        };
+        
+        // 添加消息到控制台
+        function appendToConsole(message, type) {
+            const line = document.createElement('div');
+            line.textContent = message;
+            
+            switch(type) {
+                case 'error':
+                    line.style.color = '#ff6b6b';
+                    break;
+                case 'warn':
+                    line.style.color = '#ffd166';
+                    break;
+                default:
+                    line.style.color = '#dcdcdc';
+            }
+            
+            consoleElement.appendChild(line);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+        
+        // 清空控制台
+        function clearConsole() {
+            consoleElement.innerHTML = '';
+        }
+        
+        // 运行真实测试的函数
+        function runRealTest() {
+            clearConsole();
+            console.log('正在加载并运行真实迷宫生成测试...');
+            
+            // 移除之前可能加载的脚本
+            const existingScript = document.getElementById('maze-test-script');
+            if (existingScript) {
+                existingScript.remove();
+            }
+            
+            // 导入测试脚本
+            const script = document.createElement('script');
+            script.id = 'maze-test-script';
+            script.src = 'maze-test-real.js';
+            script.onload = function() {
+                console.log('\n测试脚本执行完成');
+            };
+            script.onerror = function() {
+                console.error('测试脚本加载失败');
+            };
+            document.head.appendChild(script);
+        }
+        
+        // 运行综合测试的函数
+        function runComprehensiveTest() {
+            clearConsole();
+            console.log('正在加载并运行综合迷宫生成测试...');
+            
+            // 移除之前可能加载的脚本
+            const existingScript = document.getElementById('maze-test-script');
+            if (existingScript) {
+                existingScript.remove();
+            }
+            
+            // 导入测试脚本
+            const script = document.createElement('script');
+            script.id = 'maze-test-script';
+            script.type = 'module';
+            script.src = 'comprehensive-maze-test.js';
+            script.onload = function() {
+                console.log('\n综合测试脚本执行完成');
+            };
+            script.onerror = function() {
+                console.error('综合测试脚本加载失败');
+            };
+            document.head.appendChild(script);
+        }
+        
+        // 运行可视化迷宫测试的函数
+        function runVisualTest() {
+            clearConsole();
+            console.log('正在生成可视化迷宫...');
+            
+            // 移除之前可能加载的脚本
+            const existingScript = document.getElementById('maze-test-script');
+            if (existingScript) {
+                existingScript.remove();
+            }
+            
+            // 导入可视化测试脚本（使用实际的maze.js算法）
+            const script = document.createElement('script');
+            script.id = 'maze-test-script';
+            script.type = 'module';
+            script.src = 'visual-maze-test.js';
+            script.onload = function() {
+                console.log('测试脚本加载完成，开始运行可视化测试...');
+                // 调用测试脚本中的函数
+                if (window.runVisualMazeTest) {
+                    window.runVisualMazeTest();
+                } else {
+                    console.error('测试脚本中的runVisualMazeTest函数不存在！');
+                }
+            };
+            script.onerror = function() {
+                console.error('可视化测试脚本加载失败！');
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+</body>
+</html>

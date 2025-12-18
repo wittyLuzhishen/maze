@@ -2,7 +2,10 @@
 import { CONFIG, COLORS, DIFFICULTY_CONFIG } from './config.js';
 import { gameState } from './state.js';
 
-// 生成随机迷宫（使用递归回溯算法生成完美迷宫，然后随机移除墙壁形成回路）
+/**
+ * 生成随机迷宫（使用递归回溯算法生成完美迷宫，然后随机移除墙壁形成回路）
+ * @returns {number[][]} 生成的迷宫数组，0表示通路，1表示墙壁
+ */
 export function generateMaze() {
     // 初始化迷宫，所有格子都是墙壁
     const maze = Array(CONFIG.MAZE_HEIGHT).fill().map(() => 
@@ -34,6 +37,7 @@ export function generateMaze() {
             const ny = y + dir.dy;
             
             // 检查是否在边界内且未访问
+            // 由于移动步长是2个格子，需要确保目标位置在有效范围内
             if (nx > 0 && nx < CONFIG.MAZE_WIDTH - 1 && ny > 0 && ny < CONFIG.MAZE_HEIGHT - 1 && maze[ny][nx] === 1) {
                 // 打通当前格子到目标格子的墙壁
                 maze[y + dir.dy / 2][x + dir.dx / 2] = 0;
@@ -130,7 +134,10 @@ export function generateMaze() {
     console.log("迷宫生成完成，使用递归回溯+随机移墙方法");
 }
 
-// 渲染迷宫
+/**
+ * 渲染迷宫
+ * @param {CanvasRenderingContext2D} ctx - 画布上下文
+ */
 export function renderMaze(ctx) {
     for (let y = 0; y < CONFIG.MAZE_HEIGHT; y++) {
         for (let x = 0; x < CONFIG.MAZE_WIDTH; x++) {

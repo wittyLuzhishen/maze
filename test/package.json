@@ -1,0 +1,20 @@
+{
+  "name": "maze-game-tests",
+  "version": "1.0.0",
+  "description": "Tests for the maze game algorithms",
+  "main": "run-tests.js",
+  "scripts": {
+    "test": "node run-tests.js",
+    "test:watch": "nodemon run-tests.js"
+  },
+  "keywords": [
+    "maze",
+    "game",
+    "tests"
+  ],
+  "author": "Maze Game Developer",
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}

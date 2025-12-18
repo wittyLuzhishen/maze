@@ -218,6 +218,7 @@ function startGame() {
     
     // 重置游戏状态
     gameState.hasStartedMoving = false; // 初始时不计时，直到玩家开始移动
+    gameState.showFullMaze = false; // 重置迷宫全貌显示标志
     gameState.startTime = performance.now(); // 记录关卡开始时间
     gameState.moveStartTime = 0; // 重置玩家开始移动的时间
     gameState.elapsedTime = 0; // 重置关卡用时
@@ -674,23 +675,64 @@ function initCustomDialog() {
 
     // 拖拽功能
     dialogHeader.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        dragOffsetX = e.clientX - dialogContent.offsetLeft;
-        dragOffsetY = e.clientY - dialogContent.offsetTop;
+        // 阻止事件冒泡，防止对话框关闭
+        e.stopPropagation();
         
+        // 获取对话框内容的实际位置（相对于视口）
+        const rect = dialogContent.getBoundingClientRect();
+        
+        // 计算鼠标相对于对话框内容左上角的偏移量
+        dragOffsetX = e.clientX - rect.left;
+        dragOffsetY = e.clientY - rect.top;
+        
+        // 保存当前位置和样式
+        const originalPosition = dialogContent.style.position;
+        const originalLeft = dialogContent.style.left;
+        const originalTop = dialogContent.style.top;
+        const originalTransform = dialogContent.style.transform;
+        
+        // 设置对话框内容为fixed定位，确保拖拽时位置正确
+        dialogContent.style.position = 'fixed';
+        dialogContent.style.left = rect.left + 'px';
+        dialogContent.style.top = rect.top + 'px';
+        dialogContent.style.transform = 'none';
+        
+        isDragging = true;
         dialogContent.style.cursor = 'grabbing';
+    });
+    
+    // 为对话框标题栏添加其他事件监听器，阻止事件冒泡
+    dialogHeader.addEventListener('mouseup', (e) => {
+        e.stopPropagation();
+    });
+    
+    dialogHeader.addEventListener('click', (e) => {
+        e.stopPropagation();
     });
 
     document.addEventListener('mousemove', (e) => {
         if (isDragging) {
+            // 计算新位置
             const newX = e.clientX - dragOffsetX;
             const newY = e.clientY - dragOffsetY;
             
-            // 不限制对话框移动范围
+            // 直接设置位置，保持定位上下文一致
             dialogContent.style.left = newX + 'px';
             dialogContent.style.top = newY + 'px';
-            dialogContent.style.position = 'fixed';
         }
+    });
+    
+    // 为对话框内容添加多个事件监听器，阻止事件冒泡
+    dialogContent.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+    
+    dialogContent.addEventListener('mouseup', (e) => {
+        e.stopPropagation();
+    });
+    
+    dialogContent.addEventListener('click', (e) => {
+        e.stopPropagation();
     });
 
     document.addEventListener('mouseup', () => {

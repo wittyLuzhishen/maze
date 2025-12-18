@@ -94,7 +94,7 @@ export const DIFFICULTY_CONFIG = {
     easy: {
         initialTorches: 3,     // 初始火把数量
         mazeTorches: 3,        // 迷宫中火把数量
-        mazeWidth: 18,         // 迷宫宽度
+        mazeWidth: 19,         // 迷宫宽度 - 改为奇数
         mazeHeight: 13,        // 迷宫高度
         torchLightRadius: 120, // 火把照明半径
         torchBurnTime: 20,      // 火把燃烧时间（秒）
@@ -103,7 +103,7 @@ export const DIFFICULTY_CONFIG = {
     medium: {
         initialTorches: 2,     // 初始火把数量
         mazeTorches: 5,        // 迷宫中火把数量
-        mazeWidth: 22,         // 迷宫宽度
+        mazeWidth: 23,         // 迷宫宽度 - 改为奇数
         mazeHeight: 17,        // 迷宫高度
         torchLightRadius: 100, // 火把照明半径
         torchBurnTime: 15,      // 火把燃烧时间（秒）
@@ -112,7 +112,7 @@ export const DIFFICULTY_CONFIG = {
     hard: {
         initialTorches: 1,     // 初始火把数量
         mazeTorches: 7,        // 迷宫中火把数量
-        mazeWidth: 26,         // 迷宫宽度
+        mazeWidth: 27,         // 迷宫宽度 - 改为奇数
         mazeHeight: 21,        // 迷宫高度
         torchLightRadius: 80,  // 火把照明半径
         torchBurnTime: 10,      // 火把燃烧时间（秒）
@@ -126,7 +126,7 @@ export const CONFIG = {
     TILE_SIZE: 40,           // 每个格子的像素大小
     CANVAS_WIDTH: 900,       // 画布宽度（像素）
     CANVAS_HEIGHT: 700,      // 画布高度（像素）
-    MAZE_WIDTH: 22,          // 迷宫宽度（格子数）
+    MAZE_WIDTH: 23,          // 迷宫宽度（格子数） - 改为奇数，确保算法能访问到右侧倒数第二列
     MAZE_HEIGHT: 17,         // 迷宫高度（格子数）
     PLAYER_SPEED: 2.5,       // 玩家移动速度（像素/帧）
     PLAYER_SIZE: 25,         // 玩家尺寸（像素），小于通道宽度，确保角色在通道内
