@@ -1,16 +1,16 @@
 // 迷宫生成和渲染模块
-import { CONFIG, COLORS } from './config.js';
+import { CONFIG, COLORS, DIFFICULTY_CONFIG } from './config.js';
 import { gameState } from './state.js';
 
-// 生成随机迷宫（使用递归回溯算法）
+// 生成随机迷宫（使用递归回溯算法生成完美迷宫，然后随机移除墙壁形成回路）
 export function generateMaze() {
     // 初始化迷宫，所有格子都是墙壁
     const maze = Array(CONFIG.MAZE_HEIGHT).fill().map(() => 
         Array(CONFIG.MAZE_WIDTH).fill(1)
     );
     
-    // 递归回溯生成迷宫
-    function carve(x, y) {
+    // 第一步：使用递归回溯算法生成完美迷宫（所有通道都是单路径，没有环路）
+    function generatePerfectMaze(x, y) {
         // 标记当前格子为通路
         maze[y][x] = 0;
         
@@ -34,17 +34,86 @@ export function generateMaze() {
             const ny = y + dir.dy;
             
             // 检查是否在边界内且未访问
-            if (nx >= 0 && nx < CONFIG.MAZE_WIDTH && ny >= 0 && ny < CONFIG.MAZE_HEIGHT && maze[ny][nx] === 1) {
+            if (nx > 0 && nx < CONFIG.MAZE_WIDTH - 1 && ny > 0 && ny < CONFIG.MAZE_HEIGHT - 1 && maze[ny][nx] === 1) {
                 // 打通当前格子到目标格子的墙壁
                 maze[y + dir.dy / 2][x + dir.dx / 2] = 0;
                 // 递归访问目标格子
-                carve(nx, ny);
+                generatePerfectMaze(nx, ny);
             }
         }
     }
     
-    // 从(1,1)开始生成（奇数坐标确保边界）
-    carve(1, 1);
+    // 从(1,1)开始生成完美迷宫（奇数坐标确保边界）
+    generatePerfectMaze(1, 1);
+    
+    // 第二步：随机移除部分墙壁，形成回路
+    function createLoops() {
+        // 收集所有可能的墙壁位置（这些墙壁连接两个通道）
+        const potentialWalls = [];
+        
+        // 遍历所有内部墙壁（不包括边界）
+        for (let y = 1; y < CONFIG.MAZE_HEIGHT - 1; y++) {
+            for (let x = 1; x < CONFIG.MAZE_WIDTH - 1; x++) {
+                // 如果当前位置是墙
+                if (maze[y][x] === 1) {
+                    // 检查这个墙是否连接两个通道
+                    let connectsPaths = false;
+                    
+                    // 检查水平方向的墙（连接左右通道）
+                    if (x > 0 && x < CONFIG.MAZE_WIDTH - 1 && 
+                        maze[y][x-1] === 0 && maze[y][x+1] === 0) {
+                        connectsPaths = true;
+                    }
+                    
+                    // 检查垂直方向的墙（连接上下通道）
+                    if (y > 0 && y < CONFIG.MAZE_HEIGHT - 1 && 
+                        maze[y-1][x] === 0 && maze[y+1][x] === 0) {
+                        connectsPaths = true;
+                    }
+                    
+                    if (connectsPaths) {
+                        potentialWalls.push({ x, y });
+                    }
+                }
+            }
+        }
+        
+        // 根据难度确定要移除的墙壁数量
+        let wallRemovalRate = CONFIG.LOOP_GENERATION_RATE; // 使用默认值
+        if (CONFIG.DIFFICULTY && DIFFICULTY_CONFIG[CONFIG.DIFFICULTY]) {
+            // 使用当前难度的配置值
+            wallRemovalRate = DIFFICULTY_CONFIG[CONFIG.DIFFICULTY].loopGenerationRate;
+        }
+        // 如果是自定义难度，会在其他地方设置CONFIG.LOOP_GENERATION_RATE
+        
+        // 计算要移除的墙壁数量
+        const wallsToRemove = Math.floor(potentialWalls.length * wallRemovalRate);
+        
+        // 随机打乱墙壁数组
+        for (let i = potentialWalls.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [potentialWalls[i], potentialWalls[j]] = [potentialWalls[j], potentialWalls[i]];
+        }
+        
+        // 移除选定的墙壁，形成回路
+        for (let i = 0; i < wallsToRemove && i < potentialWalls.length; i++) {
+            const wall = potentialWalls[i];
+            maze[wall.y][wall.x] = 0; // 打通墙壁
+        }
+    }
+    
+    // 创建回路
+    createLoops();
+    
+    // 确保迷宫边界都是墙壁
+    for (let x = 0; x < CONFIG.MAZE_WIDTH; x++) {
+        maze[0][x] = 1; // 上边界
+        maze[CONFIG.MAZE_HEIGHT - 1][x] = 1; // 下边界
+    }
+    for (let y = 0; y < CONFIG.MAZE_HEIGHT; y++) {
+        maze[y][0] = 1; // 左边界
+        maze[y][CONFIG.MAZE_WIDTH - 1] = 1; // 右边界
+    }
     
     // 设置玩家初始位置（在通道中心）
     gameState.player.x = CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2; // 60
@@ -58,6 +127,7 @@ export function generateMaze() {
     
     // 确保玩家初始位置有效
     console.log("玩家初始位置:", gameState.player.x, gameState.player.y);
+    console.log("迷宫生成完成，使用递归回溯+随机移墙方法");
 }
 
 // 渲染迷宫
@@ -67,12 +137,25 @@ export function renderMaze(ctx) {
             if (gameState.maze[y][x] === 1) {
                 // 渲染墙壁
                 ctx.fillStyle = COLORS.WALL;
-                ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
                 
-                // 添加墙壁边框效果
-                ctx.strokeStyle = COLORS.WALL_BORDER;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+                // 检查是否是最外层墙壁
+                const isTopWall = y === 0;
+                const isBottomWall = y === CONFIG.MAZE_HEIGHT - 1;
+                const isLeftWall = x === 0;
+                const isRightWall = x === CONFIG.MAZE_WIDTH - 1;
+                const isSecondRightWall = x === CONFIG.MAZE_WIDTH - 2;
+                
+                // 最外层墙壁处理
+                if (isRightWall || isLeftWall || isTopWall || isBottomWall) {
+                    // 所有最外层墙壁，只绘制填充，不绘制边框，确保厚度为1像素
+                    ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+                } else {
+                    // 内部墙壁，绘制完整填充和边框
+                    ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+                    ctx.strokeStyle = COLORS.WALL_BORDER;
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+                }
             } else {
                 // 渲染通路
                 ctx.fillStyle = COLORS.PATH;

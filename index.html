@@ -7,33 +7,119 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="game-header">
+    <div id="start-screen">
+        <div class="start-screen-content">
+            <div class="left-panel">
+                <h1>迷宫探索</h1>
+                <div class="game-intro">
+                    <p>你被困在一个黑暗的迷宫中，只有火把能照亮前方的道路。收集额外的火把，寻找钥匙打开大门，逃出迷宫！</p>
+                    <div id="instructions">
+                        <h3>操作说明：</h3>
+                        <p>使用WASD或方向键移动角色<br>
+                        火把会自动照亮周围区域<br>
+                        收集火把增加照明时间<br>
+                        找到钥匙打开大门</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="right-panel-content">
+                    <div id="difficulty-selection">
+                        <h3>选择难度</h3>
+                        <div class="difficulty-options">
+                            <button class="difficulty-button" data-difficulty="easy">简单</button>
+                            <button class="difficulty-button" data-difficulty="medium">中等</button>
+                            <button class="difficulty-button" data-difficulty="hard">困难</button>
+                            <button class="difficulty-button" data-difficulty="custom">自定义</button>
+                        </div>
+                        
+                        <div id="custom-settings" class="hidden">
+                            <h4>自定义设置</h4>
+                            <div class="setting-group">
+                                <label for="custom-initial-torches">初始火把数量:</label>
+                                <input type="range" id="custom-initial-torches" min="1" max="5" value="1">
+                                <span id="initial-torches-value">1</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-maze-torches">迷宫火把数量:</label>
+                                <input type="range" id="custom-maze-torches" min="1" max="20" value="5">
+                                <span id="maze-torches-value">5</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-maze-width">迷宫宽度:</label>
+                                <input type="range" id="custom-maze-width" min="10" max="40" value="22">
+                                <span id="maze-width-value">22</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-maze-height">迷宫高度:</label>
+                                <input type="range" id="custom-maze-height" min="8" max="30" value="17">
+                                <span id="maze-height-value">17</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-light-radius">照明半径:</label>
+                                <input type="range" id="custom-light-radius" min="50" max="200" value="100">
+                                <span id="light-radius-value">100</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-torch-time">火把寿命(秒):</label>
+                                <input type="range" id="custom-torch-time" min="5" max="60" value="15">
+                                <span id="torch-time-value">15</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-loop-rate">回路生成概率(%):</label>
+                                <input type="range" id="custom-loop-rate" min="0" max="30" value="10">
+                                <span id="loop-rate-value">10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="start-button-container">
+                    <button id="start-button">开始游戏</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="game-container">
+        <div id="game-controls">
+            <button id="pause-button" class="control-button">暂停</button>
+            <button id="restart-button" class="control-button">重新开始</button>
+            <button id="back-to-main-button" class="control-button">返回主界面</button>
+        </div>
+        
+        <div id="game-area">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        
         <div id="ui">
-            <div class="ui-element">关卡: <span id="level-count">1</span></div>
+            <div class="ui-element" style="display: none;">关卡: <span id="level-count">1</span></div>
+            <div class="ui-element">难度: <span id="difficulty-display">中等</span></div>
+            <div class="ui-element">迷宫尺寸: <span id="maze-size-display">22×17</span></div>
+            <div class="ui-element">照明半径: <span id="light-radius-display">100</span>px</div>
             <div class="ui-element">火把数量: <span id="torch-count">1</span></div>
-            <div class="ui-element">火把寿命: <span id="torch-time">30</span>秒</div>
+            <div class="ui-element">火把寿命: <span id="torch-time"></span>秒</div>
             <div class="ui-element">关卡用时: <span id="level-time">0</span>秒</div>
             <div class="ui-element">钥匙: <span id="key-status">未找到</span></div>
         </div>
     </div>
     
-    <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        
-        <div id="start-screen">
-            <h1>迷宫探索</h1>
-            <p>你被困在一个黑暗的迷宫中，只有火把能照亮前方的道路。收集额外的火把，寻找钥匙打开大门，逃出迷宫！</p>
-            <button id="start-button">开始游戏</button>
-            <div id="instructions">
-                <h3>操作说明：</h3>
-                <p>使用WASD或方向键移动角色<br>
-                火把会自动照亮周围区域<br>
-                收集火把增加照明时间<br>
-                找到钥匙打开大门</p>
+    <!-- 自定义对话框 -->
+    <div id="custom-dialog" class="hidden">
+        <div id="dialog-content">
+            <div id="dialog-header">
+                <span id="dialog-title">提示</span>
+                <button id="dialog-close">×</button>
+            </div>
+            <div id="dialog-message">消息内容</div>
+            <div id="dialog-buttons">
+                <button id="dialog-confirm" class="dialog-button">确定</button>
+                <button id="dialog-cancel" class="dialog-button">取消</button>
             </div>
         </div>
     </div>
-    
-    <script type="module" src="game.js"></script>
+
+    <script type="module" src="game.js?v=1.1"></script>
 </body>
 </html>

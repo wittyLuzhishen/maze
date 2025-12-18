@@ -2,6 +2,7 @@
 import { CONFIG, COLORS } from './config.js';
 import { gameState } from './state.js';
 import { showMazeFullView, restartGame, updateUI } from './player.js';
+import { showCustomDialog } from './game.js';
 
 // 生成门
 export function generateDoor() {
@@ -74,8 +75,45 @@ export function generateKey() {
     };
 }
 
+// 检查火把位置是否与墙壁重叠（包括火焰范围）
+function isTorchPositionValid(torchX, torchY) {
+    // 火把尺寸：柄宽6px，高20px；顶部宽10px，高5px；火焰高15px
+    // 火把总高度：20px（柄）+ 5px（顶部）+ 15px（火焰）= 40px
+    // 火把总宽度：10px（顶部最宽部分）
+    
+    const torchWidth = 10;  // 火把顶部宽度
+    const torchHeight = 40; // 火把总高度（柄+顶部+火焰）
+    
+    // 计算火把的边界框
+    const torchLeft = torchX - torchWidth / 2;
+    const torchRight = torchX + torchWidth / 2;
+    const torchTop = torchY - torchHeight;
+    const torchBottom = torchY;
+    
+    // 将边界框转换为网格坐标
+    const gridLeft = Math.floor(torchLeft / CONFIG.TILE_SIZE);
+    const gridRight = Math.floor(torchRight / CONFIG.TILE_SIZE);
+    const gridTop = Math.floor(torchTop / CONFIG.TILE_SIZE);
+    const gridBottom = Math.floor(torchBottom / CONFIG.TILE_SIZE);
+    
+    // 检查边界框内的所有网格单元
+    for (let y = gridTop; y <= gridBottom; y++) {
+        for (let x = gridLeft; x <= gridRight; x++) {
+            // 检查网格是否在迷宫范围内
+            if (x >= 0 && x < CONFIG.MAZE_WIDTH && y >= 0 && y < CONFIG.MAZE_HEIGHT) {
+                // 如果网格是墙壁，则火把位置无效
+                if (gameState.maze[y][x] === 1) {
+                    return false;
+                }
+            }
+        }
+    }
+    
+    return true;
+}
+
 // 生成道具（火把和钥匙）
-export function spawnItems() {
+export function spawnItems(torchCount = null) {
     // 生成钥匙
     generateKey();
     
@@ -83,16 +121,22 @@ export function spawnItems() {
     const torches = [];
     const possibleTorchPositions = [];
     
-    // 收集所有可能生成火把的位置（通路，非起点，非门位置）
+    // 收集所有可能生成火把的位置（通路，非起点，非门位置，且不与墙壁重叠）
     for (let y = 0; y < CONFIG.MAZE_HEIGHT; y++) {
         for (let x = 0; x < CONFIG.MAZE_WIDTH; x++) {
             if (gameState.maze[y][x] === 0) {
                 // 不在起点和门的位置生成火把
                 if (!((x === 1 && y === 1) || (x === gameState.door.x && y === gameState.door.y))) {
-                    possibleTorchPositions.push({
-                        x: x * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2,
-                        y: y * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2
-                    });
+                    const torchX = x * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2;
+                    const torchY = y * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2;
+                    
+                    // 检查火把位置是否有效（不与墙壁重叠）
+                    if (isTorchPositionValid(torchX, torchY)) {
+                        possibleTorchPositions.push({
+                            x: torchX,
+                            y: torchY
+                        });
+                    }
                 }
             }
         }
@@ -104,10 +148,13 @@ export function spawnItems() {
         [possibleTorchPositions[i], possibleTorchPositions[j]] = [possibleTorchPositions[j], possibleTorchPositions[i]];
     }
     
-    // 根据当前关卡获取对应的火把数量，关卡越难火把越少
-    const levelTorchCount = CONFIG.TORCH_COUNT_BY_LEVEL[gameState.currentLevel] || CONFIG.DEFAULT_TORCH_COUNT;
-    const torchCount = Math.min(levelTorchCount, possibleTorchPositions.length);
-    for (let i = 0; i < torchCount; i++) {
+    // 如果未指定火把数量，则根据当前关卡获取对应的火把数量，关卡越难火把越少
+    if (torchCount === null) {
+        torchCount = CONFIG.TORCH_COUNT_BY_LEVEL[gameState.currentLevel] || CONFIG.DEFAULT_TORCH_COUNT;
+    }
+    
+    const finalTorchCount = Math.min(torchCount, possibleTorchPositions.length);
+    for (let i = 0; i < finalTorchCount; i++) {
         torches.push(possibleTorchPositions[i]);
     }
     
@@ -116,50 +163,112 @@ export function spawnItems() {
 
 // 渲染道具
 export function renderItems(ctx) {
-    // 渲染火把（更拟真）
+    // 渲染火把（与玩家手持火把大小一致，但未点燃）
     for (const torch of gameState.torches) {
-        // 火把柄
+        // 火把木柄（添加木纹细节）
         ctx.fillStyle = COLORS.TORCH_HANDLE;
-        ctx.fillRect(torch.x - 3, torch.y - 10, 6, 20);
+        ctx.fillRect(torch.x - 3, torch.y - 5, 6, 20);
         
-        // 火把顶部
-        ctx.fillStyle = COLORS.TORCH_HEAD;
-        ctx.fillRect(torch.x - 5, torch.y - 15, 10, 5);
-        
-        // 火把火焰效果（更拟真）
-        ctx.fillStyle = COLORS.TORCH_FLAME_OUTER;
+        // 添加木纹效果
+        ctx.strokeStyle = COLORS.TORCH_WOOD_GRAIN; // 深色木纹
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.arc(torch.x, torch.y - 20, 10, 0, Math.PI * 2);
+        ctx.moveTo(torch.x - 2, torch.y - 3);
+        ctx.lineTo(torch.x - 2, torch.y + 15);
+        ctx.moveTo(torch.x + 2, torch.y - 3);
+        ctx.lineTo(torch.x + 2, torch.y + 15);
+        ctx.stroke();
+        
+        // 火把顶部（未点燃状态，添加更多细节）
+        ctx.fillStyle = COLORS.TORCH_HEAD_UNLIT;
+        ctx.beginPath();
+        ctx.moveTo(torch.x - 5, torch.y - 5);
+        ctx.lineTo(torch.x - 4, torch.y - 10);
+        ctx.lineTo(torch.x + 4, torch.y - 10);
+        ctx.lineTo(torch.x + 5, torch.y - 5);
+        ctx.closePath();
         ctx.fill();
         
-        ctx.fillStyle = COLORS.TORCH_FLAME_MIDDLE;
+        // 添加顶部细节纹理
+        ctx.fillStyle = COLORS.TORCH_TEXTURE; // 深色纹理
         ctx.beginPath();
-        ctx.arc(torch.x, torch.y - 20, 8, 0, Math.PI * 2);
+        ctx.arc(torch.x, torch.y - 7, 2, 0, Math.PI * 2);
         ctx.fill();
         
-        ctx.fillStyle = COLORS.TORCH_FLAME_INNER;
+        // 添加缠绕物细节
+        ctx.strokeStyle = COLORS.TORCH_WRAP; // 棕色缠绕物
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(torch.x, torch.y - 20, 6, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(torch.x - 3, torch.y);
+        ctx.lineTo(torch.x + 3, torch.y);
+        ctx.moveTo(torch.x - 3, torch.y + 5);
+        ctx.lineTo(torch.x + 3, torch.y + 5);
+        ctx.moveTo(torch.x - 3, torch.y + 10);
+        ctx.lineTo(torch.x + 3, torch.y + 10);
+        ctx.stroke();
+        
+        // 迷宫中的火把没有火焰（未点燃）
     }
     
-    // 渲染钥匙（更拟真）
+    // 渲染钥匙（更逼真）
     if (gameState.key) {
-        // 钥匙环
+        // 钥匙环（更精致的圆形环）
         ctx.fillStyle = COLORS.KEY;
         ctx.beginPath();
         ctx.arc(gameState.key.x, gameState.key.y - 8, 8, 0, Math.PI * 2);
         ctx.fill();
         
-        // 钥匙柄
-        ctx.fillStyle = COLORS.KEY;
-        ctx.fillRect(gameState.key.x - 3, gameState.key.y, 6, 15);
+        // 钥匙环内部空洞
+        ctx.fillStyle = COLORS.BACKGROUND_BLACK;
+        ctx.beginPath();
+        ctx.arc(gameState.key.x, gameState.key.y - 8, 4, 0, Math.PI * 2);
+        ctx.fill();
         
-        // 钥匙齿
+        // 钥匙柄（更精致的柄部）
         ctx.fillStyle = COLORS.KEY;
-        ctx.fillRect(gameState.key.x - 8, gameState.key.y + 5, 5, 3);
-        ctx.fillRect(gameState.key.x + 6, gameState.key.y + 8, 5, 3);
-        ctx.fillRect(gameState.key.x - 8, gameState.key.y + 12, 5, 3);
+        ctx.beginPath();
+        ctx.moveTo(gameState.key.x - 3, gameState.key.y - 8);
+        ctx.lineTo(gameState.key.x - 2, gameState.key.y + 5);
+        ctx.lineTo(gameState.key.x + 2, gameState.key.y + 5);
+        ctx.lineTo(gameState.key.x + 3, gameState.key.y - 8);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 钥匙齿部（更逼真的齿部设计）
+        ctx.fillStyle = COLORS.KEY;
+        
+        // 主齿部
+        ctx.fillRect(gameState.key.x - 1, gameState.key.y + 5, 2, 8);
+        
+        // 齿部细节（锯齿状）
+        ctx.beginPath();
+        ctx.moveTo(gameState.key.x - 6, gameState.key.y + 8);
+        ctx.lineTo(gameState.key.x - 4, gameState.key.y + 10);
+        ctx.lineTo(gameState.key.x - 2, gameState.key.y + 8);
+        ctx.lineTo(gameState.key.x, gameState.key.y + 10);
+        ctx.lineTo(gameState.key.x + 2, gameState.key.y + 8);
+        ctx.lineTo(gameState.key.x + 4, gameState.key.y + 10);
+        ctx.lineTo(gameState.key.x + 6, gameState.key.y + 8);
+        ctx.lineTo(gameState.key.x + 4, gameState.key.y + 12);
+        ctx.lineTo(gameState.key.x + 2, gameState.key.y + 10);
+        ctx.lineTo(gameState.key.x, gameState.key.y + 12);
+        ctx.lineTo(gameState.key.x - 2, gameState.key.y + 10);
+        ctx.lineTo(gameState.key.x - 4, gameState.key.y + 12);
+        ctx.lineTo(gameState.key.x - 6, gameState.key.y + 10);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 添加高光效果
+        ctx.fillStyle = COLORS.KEY_HIGHLIGHT; // 浅黄色高光
+        ctx.beginPath();
+        ctx.arc(gameState.key.x - 2, gameState.key.y - 6, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 添加阴影效果
+        ctx.fillStyle = COLORS.ITEM_SHADOW;
+        ctx.beginPath();
+        ctx.ellipse(gameState.key.x, gameState.key.y + 15, 4, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 
@@ -186,16 +295,23 @@ export function updateTorchTime(deltaTime, ctx) {
                 player.torchTime = CONFIG.TORCH_BURN_TIME;
             } else {
                 // 没有备用火把，游戏结束
+                // 将火把数量和火把寿命都设置为0
+                player.torches = 0;
+                player.torchTime = 0;
+                
+                // 更新UI显示
+                updateUI();
+                
                 // 立即调用showMazeFullView，不使用setTimeout
                 showMazeFullView();
                 
                 // 添加用户交互监听器
-                const handleUserInteraction = () => {
+                const handleUserInteraction = async () => {
                     // 移除事件监听器
                     document.removeEventListener('keydown', handleUserInteraction);
                     document.removeEventListener('click', handleUserInteraction);
                     
-                    alert('火把熄灭了！你迷失在黑暗中...');
+                    await showCustomDialog('游戏结束', '火把熄灭了！你迷失在黑暗中...', false);
                     restartGame();
                 };
                 

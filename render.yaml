@@ -1,0 +1,10 @@
+# Render 纯静态网站配置（无构建步骤，关闭自动化）
+services:
+  - type: web
+    name: maze  # 自定义网站名称（如你的项目名）
+    env: static           # 环境类型：静态站点
+    buildCommand: echo "no build"  # 空构建命令（无实际操作）
+    publishDir: .         # 产物目录为仓库根目录（核心适配）
+    autoDeploy: true     # 开启自动部署
+    pullRequestPreviews: false  # 关闭PR预览
+    branch: master          # 关联分支

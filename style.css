@@ -37,73 +37,457 @@ body {
     overflow: hidden;
 }
 
-#game-header {
+#game-container {
     display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
-    width: 100%;
+    flex-direction: row; /* 左中右三部分布局 */
+    align-items: center; /* 垂直居中对齐 */
+    gap: 0; /* 完全移除间距 */
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    position: relative;
+    overflow: hidden;
 }
 
-#game-container {
+#game-controls {
+    display: flex;
+    flex-direction: column; /* 垂直排列控制按钮 */
+    gap: 10px;
+    justify-content: flex-start; /* 从顶部开始排列 */
+    width: auto;
+    min-width: 120px;
     position: relative;
-    display: inline-block;
+    z-index: 2000;
+    order: 1; /* 控制按钮在左侧 */
+    padding: 10px;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.7);
+    height: 100%;
+    border-right: 2px solid var(--border-color);
+}
+
+.control-button {
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    text-align: center;
+}
+
+.control-button:hover {
+    background: var(--button-bg-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.control-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#game-area {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    flex-shrink: 1;
+    width: auto;
+    height: 100%;
+    order: 2;
+    overflow: hidden;
 }
 
 #gameCanvas {
-    border: 2px solid var(--border-color);
+    border: none;
     background: #000;
+    display: block;
     max-width: 100%;
-    max-height: 90vh;
+    max-height: 100%;
+    object-fit: contain;
 }
 
 #ui {
     display: flex;
-    gap: 20px;
+    flex-direction: column;
+    gap: 5px;
     pointer-events: none;
-    background: var(--ui-bg);
-    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px;
     border-radius: 4px;
+    min-width: 120px;
+    flex-shrink: 0;
+    margin-top: 0;
+    order: 3;
+    height: 100%;
+    justify-content: flex-start;
+    overflow-y: auto;
+    border-left: 2px solid var(--border-color);
+}
+
+/* 游戏容器和控件只在游戏进行时显示 */
+#start-screen:not(.hidden) ~ #game-container {
+    display: none;
+}
+
+#start-screen.hidden ~ #game-container {
+    display: flex;
 }
 
 .ui-element {
     background: var(--ui-bg);
-    padding: 8px 12px;
+    padding: 5px 8px; /* 减小内边距 */
     border-radius: 4px;
-    font-size: 16px;
+    font-size: 14px; /* 减小字体大小 */
     font-weight: bold;
 }
 
 #start-screen {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     background: var(--start-screen-bg);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 20px;
     z-index: 100;
 }
 
+.start-screen-content {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    gap: 40px;
+}
+
+.left-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+}
+
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.right-panel-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    gap: 20px;
+}
+
+.start-button-container {
+    margin-top: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
 #start-screen h1 {
-    font-size: 36px;
+    font-size: 48px;
     color: var(--title-color);
     text-shadow: var(--text-shadow);
+    margin-bottom: 20px;
+    align-self: flex-start;
+}
+
+.game-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
 }
 
 #start-screen p {
-    font-size: 18px;
-    text-align: center;
-    max-width: 500px;
-    line-height: 1.5;
+    font-size: 20px;
+    text-align: left;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+#instructions {
+    position: relative;
+    background: var(--instructions-bg);
+    padding: 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    width: 100%;
+    pointer-events: none;
+    z-index: 50;
+    margin-top: 20px;
+}
+
+#instructions h3 {
+    margin-bottom: 15px;
+    color: var(--title-color);
+}
+
+#instructions p {
+    text-align: left;
+    margin-bottom: 0;
 }
 
 #start-button {
-    padding: 12px 24px;
+    padding: 15px 30px;
+    font-size: 22px;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 30px;
+    align-self: center;
+    min-width: 200px;
+}
+
+#start-button:hover {
+    background: var(--button-hover-bg);
+    transform: scale(1.05);
+}
+
+/* 难度选择样式 */
+#difficulty-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+}
+
+#difficulty-selection h3 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: var(--title-color);
+    text-align: center;
+}
+
+#difficulty-selection h4 {
     font-size: 20px;
+    margin-bottom: 15px;
+    color: var(--text-color);
+    text-align: center;
+}
+
+.difficulty-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.difficulty-button {
+    padding: 10px 20px;
+    font-size: 18px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+}
+
+.difficulty-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.difficulty-button.selected {
+    background: var(--button-bg);
+    border-color: var(--button-bg);
+    color: var(--button-text);
+}
+
+#custom-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 500px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.setting-group label {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.setting-group input[type="number"],
+.setting-group input[type="range"] {
+    padding: 8px;
+    font-size: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-color);
+}
+
+.setting-group input[type="range"] {
+    height: 30px;
+}
+
+#light-radius-value,
+#initial-torches-value,
+#maze-torches-value,
+#maze-width-value,
+#maze-height-value,
+#torch-time-value,
+#loop-rate-value {
+    margin-left: 10px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.setting-group input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    outline: none;
+    margin: 10px 0;
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    cursor: pointer;
+    border: 2px solid var(--text-color);
+}
+
+.setting-group input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    cursor: pointer;
+    border: 2px solid var(--text-color);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 自定义对话框样式 */
+#custom-dialog {
+    position: fixed;
+    top: 50%; /* 距离顶部50% */
+    left: 50%;
+    transform: translate(-50%, -50%); /* 水平和垂直居中 */
+    width: auto;
+    height: auto;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center; /* 居中对齐 */
+    z-index: 10000;
+}
+
+#dialog-content {
+    background: var(--start-screen-bg);
+    border: 2px solid var(--text-color);
+    border-radius: 8px;
+    min-width: 300px;
+    max-width: 500px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+#dialog-header {
+    background: var(--button-bg);
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--text-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    user-select: none;
+}
+
+#dialog-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+#dialog-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+#dialog-close:hover {
+    background: var(--button-bg-hover);
+}
+
+#dialog-message {
+    padding: 20px;
+    color: var(--text-color);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#dialog-buttons {
+    padding: 15px 20px;
+    border-top: 1px solid var(--text-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.dialog-button {
+    padding: 8px 16px;
+    font-size: 14px;
     background: var(--button-bg);
     color: var(--button-text);
     border: none;
@@ -112,23 +496,29 @@ body {
     transition: all 0.3s ease;
 }
 
-#start-button:hover {
-    background: var(--button-hover-bg);
-    transform: scale(1.05);
+.dialog-button:hover {
+    background: var(--button-bg-hover);
+    transform: translateY(-1px);
 }
 
-#instructions {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background: var(--instructions-bg);
-    padding: 10px;
-    border-radius: 4px;
-    font-size: 14px;
-    max-width: 300px;
-    pointer-events: none;
+.dialog-button:active {
+    transform: translateY(0);
 }
 
-.hidden {
-    display: none !important;
+#dialog-confirm {
+    background: #4CAF50;
+    color: white;
+}
+
+#dialog-confirm:hover {
+    background: #45a049;
+}
+
+#dialog-cancel {
+    background: #f44336;
+    color: white;
+}
+
+#dialog-cancel:hover {
+    background: #da190b;
 }
