@@ -357,9 +357,6 @@ function updateDifficultyDisplay(gameSettings) {
 
 // 设置游戏控制按钮
 function setupGameControls() {
-    // 暂停按钮
-    document.getElementById('pause-button').addEventListener('click', togglePause);
-    
     // 重新开始按钮
     document.getElementById('restart-button').addEventListener('click', restartCurrentGame);
     
@@ -367,74 +364,9 @@ function setupGameControls() {
     document.getElementById('back-to-main-button').addEventListener('click', backToMainMenu);
 }
 
-// 切换暂停状态
-function togglePause() {
-    const pauseButton = document.getElementById('pause-button');
-    
-    if (gameState.isPlaying && !gameState.isPaused) {
-        // 暂停游戏
-        gameState.isPaused = true;
-        gameState.isPlaying = false;
-        pauseButton.textContent = '继续';
-        
-        // 停止游戏循环
-        if (gameLoopId) {
-            cancelAnimationFrame(gameLoopId);
-            gameLoopId = null;
-        }
-        
-        // 显示暂停遮罩
-        showPauseOverlay();
-    } else if (gameState.isPaused) {
-        // 继续游戏
-        gameState.isPaused = false;
-        gameState.isPlaying = true;
-        pauseButton.textContent = '暂停';
-        
-        // 隐藏暂停遮罩
-        hidePauseOverlay();
-        
-        // 重新启动游戏循环
-        startGameLoop();
-    }
-}
 
-// 显示暂停遮罩
-function showPauseOverlay() {
-    const existingOverlay = document.getElementById('pause-overlay');
-    if (existingOverlay) {
-        existingOverlay.remove();
-    }
-    
-    const overlay = document.createElement('div');
-    overlay.id = 'pause-overlay';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: ${COLORS.UI_OVERLAY};
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        color: white;
-        font-size: 48px;
-        font-weight: bold;
-        pointer-events: none;
-    `;
-    overlay.textContent = '游戏已暂停';
-    document.body.appendChild(overlay);
-}
 
-// 隐藏暂停遮罩
-function hidePauseOverlay() {
-    const overlay = document.getElementById('pause-overlay');
-    if (overlay) {
-        overlay.remove();
-    }
-}
+
 
 // 重新开始游戏
 async function restartCurrentGame() {
@@ -445,9 +377,6 @@ async function restartCurrentGame() {
             cancelAnimationFrame(gameLoopId);
             gameLoopId = null;
         }
-        
-        // 隐藏暂停遮罩
-        hidePauseOverlay();
         
         // 重新开始游戏
         startGame();
@@ -464,16 +393,11 @@ async function backToMainMenu() {
             gameLoopId = null;
         }
         
-        // 隐藏暂停遮罩
-        hidePauseOverlay();
-        
         // 重置游戏状态
         gameState.isPlaying = false;
-        gameState.isPaused = false;
         
         // 显示主界面
         document.getElementById('start-screen').classList.remove('hidden');
-        document.getElementById('pause-button').textContent = '暂停';
     }
 }
 
@@ -547,13 +471,7 @@ function render() {
                 );
                 ctx.fill();
             }
-            
-            // 添加提示信息
-            ctx.fillStyle = COLORS.TEXT_COLOR;
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('按任意键或点击鼠标继续', canvas.width / 2, canvas.height - 20);
-            
+        
             return;
         }
         
@@ -672,33 +590,102 @@ function initCustomDialog() {
     let isDragging = false;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
+    let currentMouseX = 0;
+    let currentMouseY = 0;
+    let animationFrameId = null;
 
     // 拖拽功能
+    // 鼠标移动事件处理函数
+    const handleMouseMove = (e) => {
+        if (isDragging) {
+            // 更新当前鼠标位置
+            currentMouseX = e.clientX;
+            currentMouseY = e.clientY;
+            
+            // 如果没有动画帧在运行，启动一个
+            if (!animationFrameId) {
+                animationFrameId = requestAnimationFrame(updateDialogPosition);
+            }
+        }
+    };
+    
+    // 使用requestAnimationFrame更新对话框位置
+    const updateDialogPosition = () => {
+        if (isDragging) {
+            // 计算新位置
+            const newX = currentMouseX - dragOffsetX;
+            const newY = currentMouseY - dragOffsetY;
+            
+            // 设置对话框容器位置
+            dialog.style.left = newX + 'px';
+            dialog.style.top = newY + 'px';
+            
+            // 继续下一帧动画
+            animationFrameId = requestAnimationFrame(updateDialogPosition);
+        } else {
+            // 如果不再拖拽，取消动画帧
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+    };
+    
+    // 鼠标释放事件处理函数
+    const handleMouseUp = () => {
+        // 确保拖拽状态被重置
+        isDragging = false;
+        dialogContent.style.cursor = 'default';
+        
+        // 取消动画帧
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        
+        // 解绑所有相关事件监听器
+        document.removeEventListener('mousemove', handleMouseMove, true);
+        document.removeEventListener('mouseup', handleMouseUp, true);
+        
+        // 额外的安全措施：在捕获阶段也解绑一次
+        document.removeEventListener('mousemove', handleMouseMove, false);
+        document.removeEventListener('mouseup', handleMouseUp, false);
+    };
+    
     dialogHeader.addEventListener('mousedown', (e) => {
         // 阻止事件冒泡，防止对话框关闭
         e.stopPropagation();
         
-        // 获取对话框内容的实际位置（相对于视口）
-        const rect = dialogContent.getBoundingClientRect();
+        // 如果已经在拖拽中，先重置
+        if (isDragging) {
+            handleMouseUp();
+        }
         
-        // 计算鼠标相对于对话框内容左上角的偏移量
+        // 获取对话框容器的实际位置（相对于视口）
+        const rect = dialog.getBoundingClientRect();
+        
+        // 计算鼠标相对于对话框容器左上角的偏移量
         dragOffsetX = e.clientX - rect.left;
         dragOffsetY = e.clientY - rect.top;
         
-        // 保存当前位置和样式
-        const originalPosition = dialogContent.style.position;
-        const originalLeft = dialogContent.style.left;
-        const originalTop = dialogContent.style.top;
-        const originalTransform = dialogContent.style.transform;
+        // 设置对话框容器为fixed定位，确保拖拽时位置正确
+        dialog.style.position = 'fixed';
+        dialog.style.left = rect.left + 'px';
+        dialog.style.top = rect.top + 'px';
         
-        // 设置对话框内容为fixed定位，确保拖拽时位置正确
-        dialogContent.style.position = 'fixed';
-        dialogContent.style.left = rect.left + 'px';
-        dialogContent.style.top = rect.top + 'px';
-        dialogContent.style.transform = 'none';
+        // 重置transform，避免与left/top冲突
+        dialog.style.transform = 'none';
         
         isDragging = true;
         dialogContent.style.cursor = 'grabbing';
+        
+        // 先解绑所有可能存在的事件监听器，避免重复绑定
+        document.removeEventListener('mousemove', handleMouseMove, true);
+        document.removeEventListener('mouseup', handleMouseUp, true);
+        document.removeEventListener('mousemove', handleMouseMove, false);
+        document.removeEventListener('mouseup', handleMouseUp, false);
+        
+        // 在捕获阶段绑定事件监听器，确保优先处理
+        document.addEventListener('mousemove', handleMouseMove, true);
+        document.addEventListener('mouseup', handleMouseUp, true);
     });
     
     // 为对话框标题栏添加其他事件监听器，阻止事件冒泡
@@ -708,18 +695,6 @@ function initCustomDialog() {
     
     dialogHeader.addEventListener('click', (e) => {
         e.stopPropagation();
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (isDragging) {
-            // 计算新位置
-            const newX = e.clientX - dragOffsetX;
-            const newY = e.clientY - dragOffsetY;
-            
-            // 直接设置位置，保持定位上下文一致
-            dialogContent.style.left = newX + 'px';
-            dialogContent.style.top = newY + 'px';
-        }
     });
     
     // 为对话框内容添加多个事件监听器，阻止事件冒泡
@@ -733,11 +708,6 @@ function initCustomDialog() {
     
     dialogContent.addEventListener('click', (e) => {
         e.stopPropagation();
-    });
-
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-        dialogContent.style.cursor = 'default';
     });
 
     // 确认按钮
@@ -766,6 +736,22 @@ function initCustomDialog() {
             dialogResolve = null;
         }
     });
+
+    // 确保在对话框隐藏时重置所有状态
+    const originalHideDialog = hideDialog;
+    hideDialog = () => {
+        // 停止任何正在进行的拖拽
+        isDragging = false;
+        
+        // 解绑所有事件监听器
+        document.removeEventListener('mousemove', handleMouseMove, true);
+        document.removeEventListener('mouseup', handleMouseUp, true);
+        document.removeEventListener('mousemove', handleMouseMove, false);
+        document.removeEventListener('mouseup', handleMouseUp, false);
+        
+        // 调用原始的hideDialog函数
+        originalHideDialog();
+    };
 }
 
 // 显示自定义对话框
@@ -774,6 +760,7 @@ function showCustomDialog(title, message, showCancel = true) {
         dialogResolve = resolve;
         
         const dialog = document.getElementById('custom-dialog');
+        const dialogContent = document.getElementById('dialog-content');
         const dialogTitle = document.getElementById('dialog-title');
         const dialogMessage = document.getElementById('dialog-message');
         const dialogCancel = document.getElementById('dialog-cancel');
@@ -784,11 +771,17 @@ function showCustomDialog(title, message, showCancel = true) {
         
         dialog.classList.remove('hidden');
         
-        // 重置对话框位置到屏幕中心
-        const dialogContent = document.getElementById('dialog-content');
-        dialogContent.style.left = '50%';
-        dialogContent.style.top = '50%';
-        dialogContent.style.transform = 'translate(-50%, -50%)';
+        // 重置对话框容器位置到屏幕中心
+        dialog.style.position = 'fixed';
+        dialog.style.left = '50%';
+        dialog.style.top = '50%';
+        dialog.style.transform = 'translate(-50%, -50%)';
+        
+        // 重置内容元素的样式，确保它在容器内正确显示
+        dialogContent.style.position = 'relative';
+        dialogContent.style.left = 'auto';
+        dialogContent.style.top = 'auto';
+        dialogContent.style.transform = 'none';
     });
 }
 

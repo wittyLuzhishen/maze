@@ -210,65 +210,47 @@ export function renderItems(ctx) {
         // 迷宫中的火把没有火焰（未点燃）
     }
     
-    // 渲染钥匙（更逼真）
+    // 渲染钥匙（连续钥匙杆设计）
     if (gameState.key) {
-        // 钥匙环（更精致的圆形环）
-        ctx.fillStyle = COLORS.KEY;
-        ctx.beginPath();
-        ctx.arc(gameState.key.x, gameState.key.y - 8, 8, 0, Math.PI * 2);
-        ctx.fill();
+        const key = gameState.key;
+        const keySize = CONFIG.TILE_SIZE * 0.6;
         
-        // 钥匙环内部空洞
+        // 设置钥匙颜色
+        ctx.fillStyle = COLORS.KEY;
+        
+        // 钥匙环（矩形外框）
+        const ringWidth = keySize * 0.7;
+        const ringHeight = keySize * 0.3;
+        const ringX = key.x - ringWidth / 2;
+        const ringY = key.y - keySize * 0.6;
+        
+        // 绘制钥匙环外框
+        ctx.fillRect(ringX, ringY, ringWidth, ringHeight);
+        
+        // 钥匙环内部空心
+        const holeWidth = ringWidth * 0.6;
+        const holeHeight = ringHeight * 0.6;
+        const holeX = key.x - holeWidth / 2;
+        const holeY = ringY + (ringHeight - holeHeight) / 2;
         ctx.fillStyle = COLORS.BACKGROUND_BLACK;
-        ctx.beginPath();
-        ctx.arc(gameState.key.x, gameState.key.y - 8, 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(holeX, holeY, holeWidth, holeHeight);
         
-        // 钥匙柄（更精致的柄部）
-        ctx.fillStyle = COLORS.KEY;
-        ctx.beginPath();
-        ctx.moveTo(gameState.key.x - 3, gameState.key.y - 8);
-        ctx.lineTo(gameState.key.x - 2, gameState.key.y + 5);
-        ctx.lineTo(gameState.key.x + 2, gameState.key.y + 5);
-        ctx.lineTo(gameState.key.x + 3, gameState.key.y - 8);
-        ctx.closePath();
-        ctx.fill();
-        
-        // 钥匙齿部（更逼真的齿部设计）
+        // 恢复钥匙颜色
         ctx.fillStyle = COLORS.KEY;
         
-        // 主齿部
-        ctx.fillRect(gameState.key.x - 1, gameState.key.y + 5, 2, 8);
+        // 连续的钥匙杆（从钥匙环底部一直延伸到钥匙尖端）
+        const keyShankWidth = keySize * 0.2;
+        const keyShankHeight = keySize * 1.2;
+        const keyShankX = key.x - keyShankWidth / 2;
+        const keyShankY = ringY + ringHeight;
+        ctx.fillRect(keyShankX, keyShankY, keyShankWidth, keyShankHeight);
         
-        // 齿部细节（锯齿状）
-        ctx.beginPath();
-        ctx.moveTo(gameState.key.x - 6, gameState.key.y + 8);
-        ctx.lineTo(gameState.key.x - 4, gameState.key.y + 10);
-        ctx.lineTo(gameState.key.x - 2, gameState.key.y + 8);
-        ctx.lineTo(gameState.key.x, gameState.key.y + 10);
-        ctx.lineTo(gameState.key.x + 2, gameState.key.y + 8);
-        ctx.lineTo(gameState.key.x + 4, gameState.key.y + 10);
-        ctx.lineTo(gameState.key.x + 6, gameState.key.y + 8);
-        ctx.lineTo(gameState.key.x + 4, gameState.key.y + 12);
-        ctx.lineTo(gameState.key.x + 2, gameState.key.y + 10);
-        ctx.lineTo(gameState.key.x, gameState.key.y + 12);
-        ctx.lineTo(gameState.key.x - 2, gameState.key.y + 10);
-        ctx.lineTo(gameState.key.x - 4, gameState.key.y + 12);
-        ctx.lineTo(gameState.key.x - 6, gameState.key.y + 10);
-        ctx.closePath();
-        ctx.fill();
-        
-        // 添加高光效果
-        ctx.fillStyle = COLORS.KEY_HIGHLIGHT; // 浅黄色高光
-        ctx.beginPath();
-        ctx.arc(gameState.key.x - 2, gameState.key.y - 6, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // 添加阴影效果
-        ctx.fillStyle = COLORS.ITEM_SHADOW;
-        ctx.beginPath();
-        ctx.ellipse(gameState.key.x, gameState.key.y + 15, 4, 1.5, 0, 0, Math.PI * 2);
-        ctx.fill();
+        // 钥匙齿部（只在右侧，连接在钥匙杆上）
+        const teethWidth = keySize * 0.4;
+        const teethHeight = keySize * 0.2;
+        const teethX = keyShankX + keyShankWidth; // 连接在钥匙杆的右侧边缘
+        const teethY = keyShankY + keyShankHeight * 0.7;
+        ctx.fillRect(teethX, teethY, teethWidth, teethHeight);
     }
 }
 
@@ -305,25 +287,11 @@ export function updateTorchTime(deltaTime, ctx) {
                 // 立即调用showMazeFullView，不使用setTimeout
                 showMazeFullView();
                 
-                // 添加用户交互监听器
-                const handleUserInteraction = async () => {
-                    // 检查是否有对话框正在显示
-                    const dialog = document.getElementById('custom-dialog');
-                    if (!dialog.classList.contains('hidden')) {
-                        return; // 如果有对话框显示，不执行操作
-                    }
-                    
-                    // 移除事件监听器
-                    document.removeEventListener('keydown', handleUserInteraction);
-                    document.removeEventListener('click', handleUserInteraction);
-                    
+                // 直接显示失败对话框，不需要等待用户交互
+                setTimeout(async () => {
                     await showCustomDialog('游戏结束', '火把熄灭了！你迷失在黑暗中...', false);
                     restartGame();
-                };
-                
-                // 监听键盘和鼠标事件
-                document.addEventListener('keydown', handleUserInteraction);
-                document.addEventListener('click', handleUserInteraction);
+                }, 100);
             }
         }
     }

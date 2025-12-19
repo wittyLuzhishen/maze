@@ -38,6 +38,8 @@ export const COLORS = {
     TORCH_HIGHLIGHT: '#FFFFE0', // 火把高光颜色
     
     KEY: '#FFD700',            // 钥匙颜色
+    KEY_LIGHT: '#FFFFCC',      // 钥匙浅色（用于金属渐变）
+    KEY_DARK: '#FFA500',       // 钥匙深色（用于金属渐变）
     KEY_HIGHLIGHT: '#FFFFE0',  // 钥匙高光颜色
     ITEM_SHADOW: 'rgba(0, 0, 0, 0.3)', // 道具阴影颜色
     

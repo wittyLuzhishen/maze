@@ -49,6 +49,15 @@ export function updatePlayer(deltaTime, ctx) {
         if (!isWallCollision(newX, newY)) {
             player.x = newX;
             player.y = newY;
+        } else {
+            // 方向优先化：如果对角线移动失败，尝试单一方向移动
+            // 先尝试X方向移动
+            if (dx !== 0 && !isWallCollision(newX, player.y)) {
+                player.x = newX;
+            } else if (dy !== 0 && !isWallCollision(player.x, newY)) {
+                // 再尝试Y方向移动
+                player.y = newY;
+            }
         }
     }
     
@@ -73,39 +82,35 @@ export function isWallCollision(x, y) {
     const tileSize = CONFIG.TILE_SIZE;
     const playerSize = CONFIG.PLAYER_SIZE;
     
-    // 计算玩家正方形区域的四个角
-    // 使用正方形碰撞检测，确保玩家完全位于通道内
+    // 计算玩家正方形区域的边界
     const left = x - playerSize / 2;
     const right = x + playerSize / 2;
     const top = y - playerSize / 2;
     const bottom = y + playerSize / 2;
     
-    // 检查玩家正方形区域的所有四个角
-    // 这种方法确保玩家不会卡在墙壁的角落
-    const corners = [
-        { x: left, y: top },      // 左上角
-        { x: right, y: top },     // 右上角
-        { x: left, y: bottom },   // 左下角
-        { x: right, y: bottom }   // 右下角
-    ];
+    // 获取玩家占据的所有网格单元
+    const startGridX = Math.floor(left / tileSize);
+    const endGridX = Math.ceil(right / tileSize);
+    const startGridY = Math.floor(top / tileSize);
+    const endGridY = Math.ceil(bottom / tileSize);
     
-    for (const corner of corners) {
-        const gridX = Math.floor(corner.x / tileSize);
-        const gridY = Math.floor(corner.y / tileSize);
-        
-        // 检查是否在迷宫边界内
-        if (gridX < 0 || gridX >= CONFIG.MAZE_WIDTH || gridY < 0 || gridY >= CONFIG.MAZE_HEIGHT) {
-            return true;
-        }
-        
-        // 检查是否碰到墙壁
-        if (gameState.maze[gridY][gridX] === 1) {
-            return true;
-        }
-        
-        // 检查是否碰到门（没有钥匙时不可穿越）
-        if (gameState.door && gridX === gameState.door.x && gridY === gameState.door.y && !gameState.player.hasKey) {
-            return true;
+    // 检查玩家占据的所有网格单元
+    for (let gridY = startGridY; gridY < endGridY; gridY++) {
+        for (let gridX = startGridX; gridX < endGridX; gridX++) {
+            // 检查是否在迷宫边界内
+            if (gridX < 0 || gridX >= CONFIG.MAZE_WIDTH || gridY < 0 || gridY >= CONFIG.MAZE_HEIGHT) {
+                return true;
+            }
+            
+            // 检查是否碰到墙壁
+            if (gameState.maze[gridY][gridX] === 1) {
+                return true;
+            }
+            
+            // 检查是否碰到门（没有钥匙时不可穿越）
+            if (gameState.door && gridX === gameState.door.x && gridY === gameState.door.y && !gameState.player.hasKey) {
+                return true;
+            }
         }
     }
     
@@ -217,28 +222,11 @@ export function checkDoorCollision(ctx) {
         // 立即调用showMazeFullView，不使用setTimeout
         showMazeFullView();
         
-        // 添加用户交互监听器
-        // 等待用户交互后显示胜利对话框
-        const handleUserInteraction = async () => {
-            // 检查是否有对话框正在显示
-            const dialog = document.getElementById('custom-dialog');
-            if (!dialog.classList.contains('hidden')) {
-                return; // 如果有对话框显示，不执行操作
-            }
-            
-            // 移除事件监听器，避免重复触发
-            document.removeEventListener('keydown', handleUserInteraction);
-            document.removeEventListener('click', handleUserInteraction);
-            
-            // 显示胜利对话框
+        // 直接显示胜利对话框，不需要等待用户交互
+        setTimeout(async () => {
             await showCustomDialog('胜利！', '恭喜！你成功逃出了迷宫！', false);
             restartGame(); // 重新开始游戏
-        };
-        
-        // 监听键盘和鼠标事件
-        // 确保在用户交互后才显示对话框，避免阻塞游戏
-        document.addEventListener('keydown', handleUserInteraction);
-        document.addEventListener('click', handleUserInteraction);
+        }, 100);
     }
 }
 

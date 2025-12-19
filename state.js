@@ -3,7 +3,6 @@ import { CONFIG } from './config.js';
 
 export let gameState = {
     isPlaying: false,
-    isPaused: false,          // 游戏是否暂停
     hasStartedMoving: false,  // 玩家是否已经开始移动
     showFullMaze: false,      // 是否显示迷宫全貌
     lastUpdateTime: 0,        // 上次更新的时间
