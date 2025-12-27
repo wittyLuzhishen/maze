@@ -1,0 +1,2621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷宫探索</title>
+    
+<style>
+:root {
+    /* 背景和文本颜色 */
+    --bg-color: #1a1a2e;
+    --text-color: #fff;
+    --border-color: #0f3460;
+    
+    /* UI元素颜色 */
+    --ui-bg: rgba(0, 0, 0, 0.7);
+    --start-screen-bg: rgba(0, 0, 0, 0.9);
+    --instructions-bg: rgba(0, 0, 0, 0.7);
+    
+    /* 按钮颜色 */
+    --button-bg: #e94560;
+    --button-hover-bg: #c7365f;
+    --button-text: #fff;
+    
+    /* 标题和强调色 */
+    --title-color: #e94560;
+    --text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+#game-container {
+    display: flex;
+    flex-direction: row; /* 左中右三部分布局 */
+    align-items: center; /* 垂直居中对齐 */
+    gap: 0; /* 完全移除间距 */
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    position: relative;
+    overflow: hidden;
+}
+
+#game-controls {
+    display: flex;
+    flex-direction: column; /* 垂直排列控制按钮 */
+    gap: 10px;
+    justify-content: flex-start; /* 从顶部开始排列 */
+    width: auto;
+    min-width: 120px;
+    position: relative;
+    z-index: 2000;
+    order: 1; /* 控制按钮在左侧 */
+    padding: 10px;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.7);
+    height: 100%;
+    border-right: 2px solid var(--border-color);
+}
+
+.control-button {
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    text-align: center;
+}
+
+.control-button:hover {
+    background: var(--button-bg-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.control-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#game-area {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    flex-shrink: 1;
+    width: auto;
+    height: 100%;
+    order: 2;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    border: none;
+    background: #000;
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+#ui {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px;
+    border-radius: 4px;
+    min-width: 120px;
+    flex-shrink: 0;
+    margin-top: 0;
+    order: 3;
+    height: 100%;
+    justify-content: flex-start;
+    overflow-y: auto;
+    border-left: 2px solid var(--border-color);
+}
+
+/* 游戏容器和控件只在游戏进行时显示 */
+#start-screen:not(.hidden) ~ #game-container {
+    display: none;
+}
+
+#start-screen.hidden ~ #game-container {
+    display: flex;
+}
+
+.ui-element {
+    background: var(--ui-bg);
+    padding: 5px 8px; /* 减小内边距 */
+    border-radius: 4px;
+    font-size: 14px; /* 减小字体大小 */
+    font-weight: bold;
+}
+
+#start-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--start-screen-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.start-screen-content {
+    display: flex;
+    flex-direction: row;
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    gap: 40px;
+}
+
+.left-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+}
+
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.right-panel-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    gap: 20px;
+}
+
+.start-button-container {
+    margin-top: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+#start-screen h1 {
+    font-size: 48px;
+    color: var(--title-color);
+    text-shadow: var(--text-shadow);
+    margin-bottom: 20px;
+    align-self: flex-start;
+}
+
+.game-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+#start-screen p {
+    font-size: 20px;
+    text-align: left;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+#instructions {
+    position: relative;
+    background: var(--instructions-bg);
+    padding: 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    width: 100%;
+    pointer-events: none;
+    z-index: 50;
+    margin-top: 20px;
+}
+
+#instructions h3 {
+    margin-bottom: 15px;
+    color: var(--title-color);
+}
+
+#instructions p {
+    text-align: left;
+    margin-bottom: 0;
+}
+
+#start-button {
+    padding: 15px 30px;
+    font-size: 22px;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 30px;
+    align-self: center;
+    min-width: 200px;
+}
+
+#start-button:hover {
+    background: var(--button-hover-bg);
+    transform: scale(1.05);
+}
+
+/* 难度选择样式 */
+#difficulty-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+}
+
+#difficulty-selection h3 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: var(--title-color);
+    text-align: center;
+}
+
+#difficulty-selection h4 {
+    font-size: 20px;
+    margin-bottom: 15px;
+    color: var(--text-color);
+    text-align: center;
+}
+
+.difficulty-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.difficulty-button {
+    padding: 10px 20px;
+    font-size: 18px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+}
+
+.difficulty-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.difficulty-button.selected {
+    background: var(--button-bg);
+    border-color: var(--button-bg);
+    color: var(--button-text);
+}
+
+#custom-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 500px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.setting-group label {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.setting-group input[type="number"],
+.setting-group input[type="range"] {
+    padding: 8px;
+    font-size: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-color);
+}
+
+.setting-group input[type="range"] {
+    height: 30px;
+}
+
+#light-radius-value,
+#initial-torches-value,
+#maze-torches-value,
+#maze-width-value,
+#maze-height-value,
+#torch-time-value,
+#loop-rate-value {
+    margin-left: 10px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.setting-group input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    outline: none;
+    margin: 10px 0;
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    cursor: pointer;
+    border: 2px solid var(--text-color);
+}
+
+.setting-group input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    cursor: pointer;
+    border: 2px solid var(--text-color);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 自定义对话框样式 */
+#custom-dialog {
+    position: fixed;
+    top: 50%; /* 距离顶部50% */
+    left: 50%;
+    transform: translate(-50%, -50%); /* 水平和垂直居中 */
+    width: auto;
+    height: auto;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center; /* 居中对齐 */
+    z-index: 10000;
+}
+
+#dialog-content {
+    background: var(--start-screen-bg);
+    border: 2px solid var(--text-color);
+    border-radius: 8px;
+    min-width: 300px;
+    max-width: 500px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+#dialog-header {
+    background: var(--button-bg);
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--text-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#dialog-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+#dialog-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+#dialog-close:hover {
+    background: var(--button-bg-hover);
+}
+
+#dialog-message {
+    padding: 20px;
+    color: var(--text-color);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#dialog-buttons {
+    padding: 15px 20px;
+    border-top: 1px solid var(--text-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.dialog-button {
+    padding: 8px 16px;
+    font-size: 14px;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.dialog-button:hover {
+    background: var(--button-bg-hover);
+    transform: translateY(-1px);
+}
+
+.dialog-button:active {
+    transform: translateY(0);
+}
+
+#dialog-confirm {
+    background: #4CAF50;
+    color: white;
+}
+
+#dialog-confirm:hover {
+    background: #45a049;
+}
+
+#dialog-cancel {
+    background: #f44336;
+    color: white;
+}
+
+#dialog-cancel:hover {
+    background: #da190b;
+}
+</style>
+</head>
+<body>
+    <div id="start-screen">
+        <div class="start-screen-content">
+            <div class="left-panel">
+                <h1>迷宫探索</h1>
+                <div class="game-intro">
+                    <p>你被困在一个黑暗的迷宫中，只有火把能照亮前方的道路。收集额外的火把，寻找钥匙打开大门，逃出迷宫！</p>
+                    <div id="instructions">
+                        <h3>操作说明：</h3>
+                        <p>使用WASD或方向键移动角色<br>
+                        火把会自动照亮周围区域<br>
+                        收集火把增加照明时间<br>
+                        找到钥匙打开大门</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="right-panel-content">
+                    <div id="difficulty-selection">
+                        <h3>选择难度</h3>
+                        <div class="difficulty-options">
+                            <button class="difficulty-button" data-difficulty="easy">简单</button>
+                            <button class="difficulty-button" data-difficulty="medium">中等</button>
+                            <button class="difficulty-button" data-difficulty="hard">困难</button>
+                            <button class="difficulty-button" data-difficulty="custom">自定义</button>
+                        </div>
+                        
+                        <div id="custom-settings" class="hidden">
+                            <h4>自定义设置</h4>
+                            <div class="setting-group">
+                                <label for="custom-initial-torches">初始火把数量:</label>
+                                <input type="range" id="custom-initial-torches" min="1" max="5" value="1">
+                                <span id="initial-torches-value">1</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-maze-torches">迷宫火把数量:</label>
+                                <input type="range" id="custom-maze-torches" min="1" max="20" value="5">
+                                <span id="maze-torches-value">5</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-maze-width">迷宫宽度:</label>
+                                <input type="range" id="custom-maze-width" min="10" max="40" value="22">
+                                <span id="maze-width-value">22</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-maze-height">迷宫高度:</label>
+                                <input type="range" id="custom-maze-height" min="8" max="30" value="17">
+                                <span id="maze-height-value">17</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-light-radius">照明半径:</label>
+                                <input type="range" id="custom-light-radius" min="50" max="200" value="100">
+                                <span id="light-radius-value">100</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-torch-time">火把寿命(秒):</label>
+                                <input type="range" id="custom-torch-time" min="5" max="60" value="15">
+                                <span id="torch-time-value">15</span>
+                            </div>
+                            <div class="setting-group">
+                                <label for="custom-loop-rate">回路生成概率(%):</label>
+                                <input type="range" id="custom-loop-rate" min="0" max="30" value="10">
+                                <span id="loop-rate-value">10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="start-button-container">
+                    <button id="start-button">开始游戏</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="game-container">
+        <div id="game-controls">
+            <button id="restart-button" class="control-button">重新开始</button>
+            <button id="back-to-main-button" class="control-button">返回主界面</button>
+        </div>
+        
+        <div id="game-area">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        
+        <div id="ui">
+            <div class="ui-element" style="display: none;">关卡: <span id="level-count">1</span></div>
+            <div class="ui-element">难度: <span id="difficulty-display">中等</span></div>
+            <div class="ui-element">迷宫尺寸: <span id="maze-size-display">22×17</span></div>
+            <div class="ui-element">照明半径: <span id="light-radius-display">100</span>px</div>
+            <div class="ui-element">火把数量: <span id="torch-count">1</span></div>
+            <div class="ui-element">火把寿命: <span id="torch-time"></span>秒</div>
+            <div class="ui-element">关卡用时: <span id="level-time">0</span>秒</div>
+            <div class="ui-element">钥匙: <span id="key-status">未找到</span></div>
+        </div>
+    </div>
+    
+    <!-- 自定义对话框 -->
+    <div id="custom-dialog" class="hidden">
+        <div id="dialog-content">
+            <div id="dialog-header">
+                <span id="dialog-title">提示</span>
+                <button id="dialog-close">×</button>
+            </div>
+            <div id="dialog-message">消息内容</div>
+            <div id="dialog-buttons">
+                <button id="dialog-confirm" class="dialog-button">确定</button>
+                <button id="dialog-cancel" class="dialog-button">取消</button>
+            </div>
+        </div>
+    </div>
+
+    
+<script>
+// 游戏配置文件
+// 包含游戏中使用的所有常量、颜色、枚举和配置项
+
+// 颜色配置，避免硬编码
+// 集中管理所有颜色定义，便于统一修改和主题切换
+const COLORS = {
+    // 迷宫相关颜色
+    WALL: '#fff',              // 墙壁颜色
+    WALL_BORDER: '#ddd',       // 墙壁边框颜色
+    PATH: '#000',              // 通路颜色
+    DOOR: '#8B4513',           // 门的主要颜色
+    DOOR_DETAIL: '#654321',    // 门的细节颜色
+    DOOR_HANDLE: '#FFD700',    // 门把手颜色
+    DOOR_INTERNAL: '#DEB887',  // 门内部颜色
+    
+    // 玩家相关颜色
+    PLAYER_BODY: '#4169E1',    // 玩家身体颜色
+    PLAYER_HEAD: '#FFDAB9',    // 玩家头部肤色
+    PLAYER_EYE: '#000',        // 眼睛颜色
+    PLAYER_MOUTH: '#000',      // 嘴巴颜色
+    PLAYER_ARM: '#FFDAB9',     // 手臂肤色
+    PLAYER_LEG: '#2E4053',     // 腿部颜色
+    PLAYER_HAIR: '#4a4a4a',    // 玩家头发颜色
+    PLAYER_EYE_HIGHLIGHT: '#ffffff', // 玩家眼睛高光颜色
+    PLAYER_MOUTH_LIPS: '#d2691e', // 玩家嘴唇颜色
+    PLAYER_SHOE: '#333333',    // 玩家鞋子颜色
+    
+    // 道具相关颜色
+    TORCH_HANDLE: '#8B4513',   // 火把柄颜色
+    TORCH_HEAD: '#A0522D',     // 火把头部颜色
+    TORCH_HEAD_UNLIT: '#696969', // 未点燃火把顶部颜色
+    TORCH_FLAME_OUTER: '#FFD700', // 火焰外层颜色
+    TORCH_FLAME_MIDDLE: '#FF4500', // 火焰中层颜色
+    TORCH_FLAME_INNER: '#FF8C00', // 火焰内层颜色
+    TORCH_WOOD_GRAIN: '#654321', // 火把木纹颜色
+    TORCH_WRAP: '#8B4513',     // 火把缠绕物颜色
+    TORCH_TEXTURE: '#4a4a4a',  // 火把纹理颜色
+    TORCH_HIGHLIGHT: '#FFFFE0', // 火把高光颜色
+    
+    KEY: '#FFD700',            // 钥匙颜色
+    KEY_LIGHT: '#FFFFCC',      // 钥匙浅色（用于金属渐变）
+    KEY_DARK: '#FFA500',       // 钥匙深色（用于金属渐变）
+    KEY_HIGHLIGHT: '#FFFFE0',  // 钥匙高光颜色
+    ITEM_SHADOW: 'rgba(0, 0, 0, 0.3)', // 道具阴影颜色
+    
+    // 照明相关颜色
+    LIGHT_OUTER: 'rgba(255, 255, 255, 1)',   // 照明外层
+    LIGHT_MIDDLE: 'rgba(255, 255, 255, 0.5)', // 照明中层
+    LIGHT_INNER: 'rgba(255, 255, 255, 0)',   // 照明内层
+    
+    // 游戏渲染相关颜色
+    BACKGROUND_WHITE: '#ffffff', // 白色背景
+    BACKGROUND_BLACK: '#000000', // 黑色背景
+    TEXT_COLOR: '#000000',      // 文本颜色
+    
+    // 遮罩渐变相关颜色
+    MASK_CENTER: 'rgba(0, 0, 0, 0)',     // 遮罩中心透明
+    MASK_MIDDLE: 'rgba(0, 0, 0, 0.5)',   // 遮罩中层半透明
+    MASK_OUTER: 'rgba(0, 0, 0, 1)',      // 遮罩外层不透明
+    
+    // UI相关颜色
+    UI_OVERLAY: 'rgba(0, 0, 0, 0.8)'     // UI遮罩层颜色
+};
+
+// 枚举对象，避免硬编码
+// 提供游戏中的常量定义，便于代码维护和扩展
+const ENUMS = {
+    // 移动方向键定义
+    // 支持WASD和方向键两种控制方式
+    MOVEMENT_KEYS: {
+        UP: ['w', 'arrowup'],      // 向上移动
+        DOWN: ['s', 'arrowdown'],  // 向下移动
+        LEFT: ['a', 'arrowleft'],  // 向左移动
+        RIGHT: ['d', 'arrowright'] // 向右移动
+    },
+    // 游戏难度枚举
+    DIFFICULTY: {
+        EASY: 1,      // 简单难度
+        MEDIUM: 2,    // 中等难度
+        HARD: 3,      // 困难难度
+        EXPERT: 4,    // 专家难度
+        NIGHTMARE: 5  // 噩梦难度
+    },
+    // 难度级别字符串枚举
+    DIFFICULTY_LEVELS: {
+        EASY: 'easy',     // 简单
+        MEDIUM: 'medium', // 中等
+        HARD: 'hard',     // 困难
+        CUSTOM: 'custom'  // 自定义
+    }
+};
+
+// 不同难度的游戏配置
+// 根据难度级别设置不同的游戏参数，影响游戏体验
+const DIFFICULTY_CONFIG = {
+    easy: {
+        initialTorches: 3,     // 初始火把数量
+        mazeTorches: 3,        // 迷宫中火把数量
+        mazeWidth: 19,         // 迷宫宽度 - 改为奇数
+        mazeHeight: 13,        // 迷宫高度
+        torchLightRadius: 120, // 火把照明半径
+        torchBurnTime: 20,      // 火把燃烧时间（秒）
+        loopGenerationRate: 0.05 // 回路生成概率
+    },
+    medium: {
+        initialTorches: 2,     // 初始火把数量
+        mazeTorches: 5,        // 迷宫中火把数量
+        mazeWidth: 23,         // 迷宫宽度 - 改为奇数
+        mazeHeight: 17,        // 迷宫高度
+        torchLightRadius: 100, // 火把照明半径
+        torchBurnTime: 15,      // 火把燃烧时间（秒）
+        loopGenerationRate: 0.05 // 回路生成概率
+    },
+    hard: {
+        initialTorches: 1,     // 初始火把数量
+        mazeTorches: 7,        // 迷宫中火把数量
+        mazeWidth: 27,         // 迷宫宽度 - 改为奇数
+        mazeHeight: 21,        // 迷宫高度
+        torchLightRadius: 80,  // 火把照明半径
+        torchBurnTime: 10,      // 火把燃烧时间（秒）
+        loopGenerationRate: 0.05 // 回路生成概率
+    }
+};
+
+// 游戏核心配置
+// 定义游戏的基本参数和游戏规则
+const CONFIG = {
+    TILE_SIZE: 40,           // 每个格子的像素大小
+    CANVAS_WIDTH: 900,       // 画布宽度（像素）
+    CANVAS_HEIGHT: 700,      // 画布高度（像素）
+    MAZE_WIDTH: 23,          // 迷宫宽度（格子数） - 改为奇数，确保算法能访问到右侧倒数第二列
+    MAZE_HEIGHT: 17,         // 迷宫高度（格子数）
+    PLAYER_SPEED: 2.5,       // 玩家移动速度（像素/帧）
+    PLAYER_SIZE: 25,         // 玩家尺寸（像素），小于通道宽度，确保角色在通道内
+    TORCH_LIGHT_RADIUS: 100, // 火把照明半径（像素）
+    INITIAL_TORCHES: 1,      // 初始火把数量
+    TORCH_BURN_TIME: 15,     // 每个火把的燃烧时间（秒）
+    KEY_SPAWN_RATE: 0.02,    // 钥匙生成概率（已废弃，改为固定生成）
+    SCALE_FACTOR: 1,         // 画布缩放因子，用于大迷宫等比例缩小
+    LOOP_GENERATION_RATE: 0.1, // 默认回路生成概率（10%）
+    
+    // 不同难度级别的火把数量配置，关卡越难火把越少
+    // 随着关卡增加，迷宫中可收集的火把数量减少，增加游戏难度
+    TORCH_COUNT_BY_LEVEL: {
+        1: 5,   // 第1关：5个火把
+        2: 4,   // 第2关：4个火把
+        3: 3,   // 第3关：3个火把
+        4: 2,   // 第4关：2个火把
+        5: 1    // 第5关：1个火把
+    },
+    
+    // 默认火把数量，用于超过配置的关卡
+    DEFAULT_TORCH_COUNT: 1
+};
+// 游戏状态管理
+
+
+let gameState = {
+    isPlaying: false,
+    hasStartedMoving: false,  // 玩家是否已经开始移动
+    showFullMaze: false,      // 是否显示迷宫全貌
+    lastUpdateTime: 0,        // 上次更新的时间
+    currentLevel: 1,         // 当前关卡
+    startTime: 0,            // 关卡开始时间
+    moveStartTime: 0,        // 玩家开始移动的时间
+    elapsedTime: 0,          // 当前关卡用时（秒）
+    player: {
+        x: 0,
+        y: 0,
+        torches: CONFIG.INITIAL_TORCHES,           // 初始火把数量
+        torchTime: CONFIG.TORCH_BURN_TIME,         // 初始火把时间
+        hasKey: false
+    },
+    maze: [],
+    torches: [],
+    key: null,
+    door: null
+};
+
+// 键盘控制状态
+let keysPressed = {};
+// 迷宫生成和渲染模块
+
+
+
+/**
+ * 生成随机迷宫（使用递归回溯算法生成完美迷宫，然后随机移除墙壁形成回路）
+ * @returns {number[][]} 生成的迷宫数组，0表示通路，1表示墙壁
+ */
+function generateMaze() {
+    // 初始化迷宫，所有格子都是墙壁
+    const maze = Array(CONFIG.MAZE_HEIGHT).fill().map(() => 
+        Array(CONFIG.MAZE_WIDTH).fill(1)
+    );
+    
+    // 第一步：使用递归回溯算法生成完美迷宫（所有通道都是单路径，没有环路）
+    function generatePerfectMaze(x, y) {
+        // 标记当前格子为通路
+        maze[y][x] = 0;
+        
+        // 随机顺序尝试四个方向
+        const directions = [
+            { dx: 0, dy: -2 }, // 上
+            { dx: 2, dy: 0 },  // 右
+            { dx: 0, dy: 2 },  // 下
+            { dx: -2, dy: 0 }  // 左
+        ];
+        
+        // 打乱方向顺序
+        for (let i = directions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [directions[i], directions[j]] = [directions[j], directions[i]];
+        }
+        
+        // 尝试每个方向
+        for (const dir of directions) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
+            
+            // 检查是否在边界内且未访问
+            // 由于移动步长是2个格子，需要确保目标位置在有效范围内
+            if (nx > 0 && nx < CONFIG.MAZE_WIDTH - 1 && ny > 0 && ny < CONFIG.MAZE_HEIGHT - 1 && maze[ny][nx] === 1) {
+                // 打通当前格子到目标格子的墙壁
+                maze[y + dir.dy / 2][x + dir.dx / 2] = 0;
+                // 递归访问目标格子
+                generatePerfectMaze(nx, ny);
+            }
+        }
+    }
+    
+    // 从(1,1)开始生成完美迷宫（奇数坐标确保边界）
+    generatePerfectMaze(1, 1);
+    
+    // 第二步：随机移除部分墙壁，形成回路
+    function createLoops() {
+        // 收集所有可能的墙壁位置（这些墙壁连接两个通道）
+        const potentialWalls = [];
+        
+        // 遍历所有内部墙壁（不包括边界）
+        for (let y = 1; y < CONFIG.MAZE_HEIGHT - 1; y++) {
+            for (let x = 1; x < CONFIG.MAZE_WIDTH - 1; x++) {
+                // 如果当前位置是墙
+                if (maze[y][x] === 1) {
+                    // 检查这个墙是否连接两个通道
+                    let connectsPaths = false;
+                    
+                    // 检查水平方向的墙（连接左右通道）
+                    if (x > 0 && x < CONFIG.MAZE_WIDTH - 1 && 
+                        maze[y][x-1] === 0 && maze[y][x+1] === 0) {
+                        connectsPaths = true;
+                    }
+                    
+                    // 检查垂直方向的墙（连接上下通道）
+                    if (y > 0 && y < CONFIG.MAZE_HEIGHT - 1 && 
+                        maze[y-1][x] === 0 && maze[y+1][x] === 0) {
+                        connectsPaths = true;
+                    }
+                    
+                    if (connectsPaths) {
+                        potentialWalls.push({ x, y });
+                    }
+                }
+            }
+        }
+        
+        // 根据难度确定要移除的墙壁数量
+        let wallRemovalRate = CONFIG.LOOP_GENERATION_RATE; // 使用默认值
+        if (CONFIG.DIFFICULTY && DIFFICULTY_CONFIG[CONFIG.DIFFICULTY]) {
+            // 使用当前难度的配置值
+            wallRemovalRate = DIFFICULTY_CONFIG[CONFIG.DIFFICULTY].loopGenerationRate;
+        }
+        // 如果是自定义难度，会在其他地方设置CONFIG.LOOP_GENERATION_RATE
+        
+        // 计算要移除的墙壁数量
+        const wallsToRemove = Math.floor(potentialWalls.length * wallRemovalRate);
+        
+        // 随机打乱墙壁数组
+        for (let i = potentialWalls.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [potentialWalls[i], potentialWalls[j]] = [potentialWalls[j], potentialWalls[i]];
+        }
+        
+        // 移除选定的墙壁，形成回路
+        for (let i = 0; i < wallsToRemove && i < potentialWalls.length; i++) {
+            const wall = potentialWalls[i];
+            maze[wall.y][wall.x] = 0; // 打通墙壁
+        }
+    }
+    
+    // 创建回路
+    createLoops();
+    
+    // 确保迷宫边界都是墙壁
+    for (let x = 0; x < CONFIG.MAZE_WIDTH; x++) {
+        maze[0][x] = 1; // 上边界
+        maze[CONFIG.MAZE_HEIGHT - 1][x] = 1; // 下边界
+    }
+    for (let y = 0; y < CONFIG.MAZE_HEIGHT; y++) {
+        maze[y][0] = 1; // 左边界
+        maze[y][CONFIG.MAZE_WIDTH - 1] = 1; // 右边界
+    }
+    
+    // 设置玩家初始位置（在通道中心）
+    gameState.player.x = CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2; // 60
+    gameState.player.y = CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2; // 60
+    
+    // 设置迷宫
+    gameState.maze = maze;
+    
+    // 确保玩家初始位置在通路上
+    gameState.maze[Math.floor(gameState.player.y / CONFIG.TILE_SIZE)][Math.floor(gameState.player.x / CONFIG.TILE_SIZE)] = 0;
+    
+    // 确保玩家初始位置有效
+    console.log("玩家初始位置:", gameState.player.x, gameState.player.y);
+    console.log("迷宫生成完成，使用递归回溯+随机移墙方法");
+}
+
+/**
+ * 渲染迷宫
+ * @param {CanvasRenderingContext2D} ctx - 画布上下文
+ */
+function renderMaze(ctx) {
+    for (let y = 0; y < CONFIG.MAZE_HEIGHT; y++) {
+        for (let x = 0; x < CONFIG.MAZE_WIDTH; x++) {
+            if (gameState.maze[y][x] === 1) {
+                // 渲染墙壁
+                ctx.fillStyle = COLORS.WALL;
+                
+                // 检查是否是最外层墙壁
+                const isTopWall = y === 0;
+                const isBottomWall = y === CONFIG.MAZE_HEIGHT - 1;
+                const isLeftWall = x === 0;
+                const isRightWall = x === CONFIG.MAZE_WIDTH - 1;
+                const isSecondRightWall = x === CONFIG.MAZE_WIDTH - 2;
+                
+                // 最外层墙壁处理
+                if (isRightWall || isLeftWall || isTopWall || isBottomWall) {
+                    // 所有最外层墙壁，只绘制填充，不绘制边框，确保厚度为1像素
+                    ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+                } else {
+                    // 内部墙壁，绘制完整填充和边框
+                    ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+                    ctx.strokeStyle = COLORS.WALL_BORDER;
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+                }
+            } else {
+                // 渲染通路
+                ctx.fillStyle = COLORS.PATH;
+                ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+            }
+        }
+    }
+    
+    // 渲染门（更拟真）
+    const doorX = gameState.door.x * CONFIG.TILE_SIZE;
+    const doorY = gameState.door.y * CONFIG.TILE_SIZE;
+    
+    // 门的主体
+    ctx.fillStyle = COLORS.DOOR;
+    ctx.fillRect(doorX, doorY, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+    
+    // 门的边框
+    ctx.strokeStyle = COLORS.DOOR_DETAIL;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(doorX, doorY, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+    
+    // 门把手
+    ctx.fillStyle = COLORS.DOOR_HANDLE;
+    ctx.beginPath();
+    ctx.arc(doorX + CONFIG.TILE_SIZE - 15, doorY + CONFIG.TILE_SIZE / 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 门的纹理
+    ctx.strokeStyle = COLORS.DOOR_DETAIL;
+    ctx.lineWidth = 1;
+    for (let i = 5; i < CONFIG.TILE_SIZE; i += 8) {
+        ctx.beginPath();
+        ctx.moveTo(doorX + i, doorY);
+        ctx.lineTo(doorX + i, doorY + CONFIG.TILE_SIZE);
+        ctx.stroke();
+    }
+    for (let i = 5; i < CONFIG.TILE_SIZE; i += 8) {
+        ctx.beginPath();
+        ctx.moveTo(doorX, doorY + i);
+        ctx.lineTo(doorX + CONFIG.TILE_SIZE, doorY + i);
+        ctx.stroke();
+    }
+}
+// 玩家相关模块
+// 负责处理玩家的移动、渲染、碰撞检测和物品收集等功能
+
+
+
+
+
+
+/**
+ * 更新玩家位置
+ * 根据用户输入更新玩家坐标，处理移动逻辑和碰撞检测
+ * @param {number} deltaTime - 上一帧到当前帧的时间差(毫秒)，用于实现基于时间的移动
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D渲染上下文，用于门碰撞检测时的渲染
+ */
+function updatePlayer(deltaTime, ctx) {
+    const player = gameState.player;
+    let dx = 0, dy = 0;
+    
+    // 检查移动输入，使用枚举替代硬编码
+    // 根据按键状态计算移动方向和距离
+    if (ENUMS.MOVEMENT_KEYS.UP.some(key => keysPressed[key])) {
+        dy = -CONFIG.PLAYER_SPEED * deltaTime / 16; // 基于时间的移动，确保不同帧率下移动速度一致
+    }
+    if (ENUMS.MOVEMENT_KEYS.DOWN.some(key => keysPressed[key])) {
+        dy = CONFIG.PLAYER_SPEED * deltaTime / 16; // 基于时间的移动
+    }
+    if (ENUMS.MOVEMENT_KEYS.LEFT.some(key => keysPressed[key])) {
+        dx = -CONFIG.PLAYER_SPEED * deltaTime / 16; // 基于时间的移动
+    }
+    if (ENUMS.MOVEMENT_KEYS.RIGHT.some(key => keysPressed[key])) {
+        dx = CONFIG.PLAYER_SPEED * deltaTime / 16; // 基于时间的移动
+    }
+    
+    // 碰撞检测
+    // 只有当玩家有移动输入时才进行碰撞检测
+    if (dx !== 0 || dy !== 0) {
+        // 玩家开始移动，设置标志和开始时间
+        // 用于计算关卡用时和游戏统计
+        if (!gameState.hasStartedMoving) {
+            gameState.hasStartedMoving = true;
+            gameState.moveStartTime = performance.now(); // 记录玩家开始移动的时间
+        }
+        
+        const newX = player.x + dx;
+        const newY = player.y + dy;
+        
+        // 检查墙壁碰撞，考虑玩家尺寸
+        // 如果新位置没有碰撞，则更新玩家位置
+        if (!isWallCollision(newX, newY)) {
+            player.x = newX;
+            player.y = newY;
+        } else {
+            // 方向优先化：如果对角线移动失败，尝试单一方向移动
+            // 先尝试X方向移动
+            if (dx !== 0 && !isWallCollision(newX, player.y)) {
+                player.x = newX;
+            } else if (dy !== 0 && !isWallCollision(player.x, newY)) {
+                // 再尝试Y方向移动
+                player.y = newY;
+            }
+        }
+    }
+    
+    // 检查火把收集
+    checkTorchCollection();
+    
+    // 检查钥匙收集
+    checkKeyCollection();
+    
+    // 检查门碰撞
+    checkDoorCollision(ctx);
+}
+
+/**
+ * 墙壁碰撞检测
+ * 检查指定坐标是否与墙壁或门发生碰撞
+ * @param {number} x - 待检测的X坐标
+ * @param {number} y - 待检测的Y坐标
+ * @returns {boolean} true表示有碰撞，false表示无碰撞
+ */
+function isWallCollision(x, y) {
+    const tileSize = CONFIG.TILE_SIZE;
+    const playerSize = CONFIG.PLAYER_SIZE;
+    
+    // 计算玩家正方形区域的边界
+    const left = x - playerSize / 2;
+    const right = x + playerSize / 2;
+    const top = y - playerSize / 2;
+    const bottom = y + playerSize / 2;
+    
+    // 获取玩家占据的所有网格单元
+    const startGridX = Math.floor(left / tileSize);
+    const endGridX = Math.ceil(right / tileSize);
+    const startGridY = Math.floor(top / tileSize);
+    const endGridY = Math.ceil(bottom / tileSize);
+    
+    // 检查玩家占据的所有网格单元
+    for (let gridY = startGridY; gridY < endGridY; gridY++) {
+        for (let gridX = startGridX; gridX < endGridX; gridX++) {
+            // 检查是否在迷宫边界内
+            if (gridX < 0 || gridX >= CONFIG.MAZE_WIDTH || gridY < 0 || gridY >= CONFIG.MAZE_HEIGHT) {
+                return true;
+            }
+            
+            // 检查是否碰到墙壁
+            if (gameState.maze[gridY][gridX] === 1) {
+                return true;
+            }
+            
+            // 检查是否碰到门（没有钥匙时不可穿越）
+            if (gameState.door && gridX === gameState.door.x && gridY === gameState.door.y && !gameState.player.hasKey) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * 检查火把收集
+ * 检测玩家是否与迷宫中的火把发生碰撞，如果碰撞则收集火把
+ */
+function checkTorchCollection() {
+    const player = gameState.player;
+    
+    // 遍历所有火把，检查碰撞
+    for (let i = gameState.torches.length - 1; i >= 0; i--) {
+        const torch = gameState.torches[i];
+        
+        // 使用方形碰撞检测，与玩家碰撞检测保持一致
+        // 确保碰撞检测的准确性和一致性
+        const playerLeft = player.x - CONFIG.PLAYER_SIZE / 2;
+        const playerRight = player.x + CONFIG.PLAYER_SIZE / 2;
+        const playerTop = player.y - CONFIG.PLAYER_SIZE / 2;
+        const playerBottom = player.y + CONFIG.PLAYER_SIZE / 2;
+        
+        // 火把的碰撞区域（比火把稍大，便于收集）
+        // 稍微放大碰撞区域，提高游戏体验
+        const torchSize = CONFIG.TILE_SIZE * 0.6; // 火把碰撞区域大小
+        const torchLeft = torch.x - torchSize / 2;
+        const torchRight = torch.x + torchSize / 2;
+        const torchTop = torch.y - torchSize / 2;
+        const torchBottom = torch.y + torchSize / 2;
+        
+        // 检查玩家和火把的方形碰撞
+        // 使用AABB(轴对齐边界框)碰撞检测算法
+        if (playerRight > torchLeft && 
+            playerLeft < torchRight && 
+            playerBottom > torchTop && 
+            playerTop < torchBottom) {
+            // 收集火把，增加备用火把数量
+            player.torches++;
+            gameState.torches.splice(i, 1); // 从数组中移除已收集的火把
+            updateUI(); // 更新UI显示
+        }
+    }
+}
+
+/**
+ * 检查钥匙收集
+ * 检测玩家是否与钥匙发生碰撞，如果碰撞则收集钥匙
+ */
+function checkKeyCollection() {
+    if (!gameState.key) return; // 如果没有钥匙，直接返回
+    
+    const player = gameState.player;
+    
+    // 使用方形碰撞检测，与玩家碰撞检测保持一致
+    const playerLeft = player.x - CONFIG.PLAYER_SIZE / 2;
+    const playerRight = player.x + CONFIG.PLAYER_SIZE / 2;
+    const playerTop = player.y - CONFIG.PLAYER_SIZE / 2;
+    const playerBottom = player.y + CONFIG.PLAYER_SIZE / 2;
+    
+    // 钥匙的碰撞区域（比钥匙稍大，便于收集）
+    const keySize = CONFIG.TILE_SIZE * 0.6; // 钥匙碰撞区域大小
+    const keyLeft = gameState.key.x - keySize / 2;
+    const keyRight = gameState.key.x + keySize / 2;
+    const keyTop = gameState.key.y - keySize / 2;
+    const keyBottom = gameState.key.y + keySize / 2;
+    
+    // 检查玩家和钥匙的方形碰撞
+    if (playerRight > keyLeft && 
+        playerLeft < keyRight && 
+        playerBottom > keyTop && 
+        playerTop < keyBottom) {
+        // 收集钥匙
+        player.hasKey = true;
+        gameState.key = null; // 移除钥匙
+        updateUI(); // 更新UI显示
+    }
+}
+
+/**
+ * 检查门碰撞
+ * 检测玩家是否与门发生碰撞，如果碰撞且玩家有钥匙，则触发游戏胜利
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D渲染上下文，用于胜利时的渲染
+ */
+function checkDoorCollision(ctx) {
+    const player = gameState.player;
+    
+    // 使用方形碰撞检测（与玩家碰撞检测一致）
+    const playerLeft = player.x - CONFIG.PLAYER_SIZE / 2;
+    const playerRight = player.x + CONFIG.PLAYER_SIZE / 2;
+    const playerTop = player.y - CONFIG.PLAYER_SIZE / 2;
+    const playerBottom = player.y + CONFIG.PLAYER_SIZE / 2;
+    
+    const doorLeft = gameState.door.x * CONFIG.TILE_SIZE;
+    const doorRight = doorLeft + CONFIG.TILE_SIZE;
+    const doorTop = gameState.door.y * CONFIG.TILE_SIZE;
+    const doorBottom = doorTop + CONFIG.TILE_SIZE;
+    
+    // 检查玩家和门的方形碰撞
+    const isColliding = playerRight > doorLeft && 
+                       playerLeft < doorRight && 
+                       playerBottom > doorTop && 
+                       playerTop < doorBottom;
+    
+    // 如果玩家与门碰撞且拥有钥匙，触发胜利条件
+    if (isColliding && player.hasKey) {
+        // 玩家找到钥匙并到达门口，游戏胜利
+        // 立即调用showMazeFullView，不使用setTimeout
+        showMazeFullView();
+        
+        // 直接显示胜利对话框，不需要等待用户交互
+        setTimeout(async () => {
+            await showCustomDialog('胜利！', '恭喜！你成功逃出了迷宫！', false);
+            restartGame(); // 重新开始游戏
+        }, 100);
+    }
+}
+
+/**
+ * 渲染玩家
+ * 在Canvas上绘制玩家角色，包括身体、头部、手臂、腿部和手持火把
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D渲染上下文
+ */
+function renderPlayer(ctx) {
+    const player = gameState.player;
+    const playerSize = CONFIG.PLAYER_SIZE;
+    
+    // 玩家身体（更逼真的身体形状）
+    ctx.fillStyle = COLORS.PLAYER_BODY;
+    // 使用圆角矩形作为身体
+    const bodyWidth = playerSize * 0.7;
+    const bodyHeight = playerSize * 0.6;
+    const bodyX = player.x - bodyWidth / 2;
+    const bodyY = player.y - bodyHeight / 4;
+    
+    ctx.beginPath();
+    ctx.roundRect(bodyX, bodyY, bodyWidth, bodyHeight, 3);
+    ctx.fill();
+    
+    // 玩家头部（更逼真的头部形状）
+    const headRadius = playerSize / 3.5;
+    ctx.fillStyle = COLORS.PLAYER_HEAD;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y - playerSize / 3, headRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 添加头发细节
+    ctx.fillStyle = COLORS.PLAYER_HAIR; // 深色头发
+    ctx.beginPath();
+    ctx.arc(player.x, player.y - playerSize / 3 - headRadius / 2, headRadius * 0.8, Math.PI, 0);
+    ctx.fill();
+    
+    // 眼睛（更逼真的眼睛）
+    ctx.fillStyle = COLORS.PLAYER_EYE;
+    const eyeSize = 2.5;
+    const eyeY = player.y - playerSize / 3;
+    
+    // 左眼
+    ctx.beginPath();
+    ctx.ellipse(player.x - headRadius / 2.5, eyeY, eyeSize, eyeSize * 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 右眼
+    ctx.beginPath();
+    ctx.ellipse(player.x + headRadius / 2.5, eyeY, eyeSize, eyeSize * 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 眼睛高光
+    ctx.fillStyle = COLORS.PLAYER_EYE_HIGHLIGHT;
+    ctx.beginPath();
+    ctx.arc(player.x - headRadius / 2.5 + 0.8, eyeY - 0.5, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(player.x + headRadius / 2.5 + 0.8, eyeY - 0.5, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 嘴巴（更自然的微笑）
+    ctx.strokeStyle = COLORS.PLAYER_MOUTH_LIPS; // 更自然的嘴唇颜色
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y - playerSize / 3 + 4, headRadius / 3, 0.2 * Math.PI, 0.8 * Math.PI);
+    ctx.stroke();
+    
+    // 手臂（更逼真的手臂）
+    ctx.fillStyle = COLORS.PLAYER_ARM;
+    
+    // 左臂（持火把的手臂，稍微抬起）
+    const leftArmWidth = playerSize * 0.15;
+    const leftArmHeight = playerSize * 0.5;
+    const leftArmX = player.x - playerSize / 2 - leftArmWidth / 2;
+    const leftArmY = player.y - playerSize / 6;
+    
+    ctx.save();
+    ctx.translate(leftArmX + leftArmWidth / 2, leftArmY);
+    ctx.rotate(-Math.PI / 6); // 向上抬起30度
+    ctx.fillRect(-leftArmWidth / 2, 0, leftArmWidth, leftArmHeight);
+    ctx.restore();
+    
+    // 右臂（自然下垂）
+    const rightArmWidth = playerSize * 0.15;
+    const rightArmHeight = playerSize * 0.45;
+    const rightArmX = player.x + playerSize / 2 - rightArmWidth / 2;
+    const rightArmY = player.y - playerSize / 6;
+    
+    ctx.fillRect(rightArmX, rightArmY, rightArmWidth, rightArmHeight);
+    
+    // 腿部（更逼真的腿部）
+    ctx.fillStyle = COLORS.PLAYER_LEG;
+    
+    // 左腿
+    const legWidth = playerSize * 0.18;
+    const legHeight = playerSize * 0.4;
+    const leftLegX = player.x - playerSize / 3;
+    const leftLegY = player.y + playerSize / 4;
+    
+    ctx.fillRect(leftLegX, leftLegY, legWidth, legHeight);
+    
+    // 右腿
+    const rightLegX = player.x + playerSize / 6;
+    
+    ctx.fillRect(rightLegX, leftLegY, legWidth, legHeight);
+    
+    // 鞋子
+    ctx.fillStyle = COLORS.PLAYER_SHOE; // 深色鞋子
+    
+    // 左鞋
+    ctx.fillRect(leftLegX - 2, leftLegY + legHeight, legWidth + 4, 4);
+    
+    // 右鞋
+    ctx.fillRect(rightLegX - 2, leftLegY + legHeight, legWidth + 4, 4);
+    
+    // 手持火把（左手持火把，有点燃的火焰）
+    if (player.torches > 0) {
+        // 计算左手位置（考虑手臂旋转）
+        const handX = player.x - playerSize / 2 - 10;
+        const handY = player.y - playerSize / 6 - 5;
+        
+        // 火把柄（更逼真的木柄）
+        ctx.fillStyle = COLORS.TORCH_HANDLE;
+        ctx.beginPath();
+        ctx.roundRect(handX - 3, handY, 6, 25, 1);
+        ctx.fill();
+        
+        // 添加木纹
+        ctx.strokeStyle = COLORS.TORCH_WOOD_GRAIN;
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(handX - 2 + i * 2, handY + 5);
+            ctx.lineTo(handX - 2 + i * 2, handY + 20);
+            ctx.stroke();
+        }
+        
+        // 火把顶部（更逼真的燃烧头部）
+        ctx.fillStyle = COLORS.TORCH_HEAD;
+        ctx.beginPath();
+        ctx.ellipse(handX, handY - 2, 6, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 火把火焰 - 更逼真的水滴状火焰（上尖下宽，点燃状态）
+        // 外层火焰（橙黄色）
+        ctx.fillStyle = COLORS.TORCH_FLAME_OUTER;
+        ctx.beginPath();
+        ctx.moveTo(handX, handY - 20); // 顶部尖点
+        ctx.bezierCurveTo(
+            handX - 6, handY - 10,  // 左上控制点
+            handX + 6, handY - 10,  // 右上控制点
+            handX, handY - 2        // 底部中点
+        );
+        ctx.closePath();
+        ctx.fill();
+        
+        // 中层火焰（橙红色）
+        ctx.fillStyle = COLORS.TORCH_FLAME_MIDDLE;
+        ctx.beginPath();
+        ctx.moveTo(handX, handY - 18); // 顶部尖点
+        ctx.bezierCurveTo(
+            handX - 4, handY - 10,  // 左上控制点
+            handX + 4, handY - 10,  // 右上控制点
+            handX, handY - 3        // 底部中点
+        );
+        ctx.closePath();
+        ctx.fill();
+        
+        // 内层火焰（黄白色）
+        ctx.fillStyle = COLORS.TORCH_FLAME_INNER;
+        ctx.beginPath();
+        ctx.moveTo(handX, handY - 15); // 顶部尖点
+        ctx.bezierCurveTo(
+            handX - 2, handY - 10,  // 左上控制点
+            handX + 2, handY - 10,  // 右上控制点
+            handX, handY - 4        // 底部中点
+        );
+        ctx.closePath();
+        ctx.fill();
+        
+        // 火焰闪烁效果
+        const flicker = Math.random() * 2 - 1; // -1到1的随机值
+        ctx.save();
+        ctx.translate(handX + flicker, 0);
+        
+        ctx.restore();
+    }
+}
+
+/**
+ * 展示迷宫全貌
+ * 去除黑暗效果，显示整个迷宫的结构
+ */
+function showMazeFullView() {
+    console.log("显示迷宫全貌开始");
+    
+    // 设置游戏状态标志
+    gameState.showFullMaze = true;
+    gameState.isPlaying = false;
+    
+    // 停止游戏循环
+    stopGameLoop();
+    
+    console.log("迷宫全貌显示完成");
+}
+
+/**
+ * 重启游戏
+ * 重置所有游戏状态，返回到开始界面
+ */
+function restartGame() {
+    gameState.isPlaying = false;
+    gameState.hasStartedMoving = false;  // 重置移动标志
+    gameState.showFullMaze = false;       // 重置迷宫全貌显示标志
+    gameState.startTime = 0;            // 重置关卡开始时间
+    gameState.moveStartTime = 0;        // 重置玩家开始移动的时间
+    gameState.elapsedTime = 0;          // 重置关卡用时
+    gameState.player = {
+        x: 0,
+        y: 0,
+        torches: CONFIG.INITIAL_TORCHES,
+        torchTime: CONFIG.TORCH_BURN_TIME,
+        hasKey: false
+    };
+    gameState.torches = [];
+    gameState.key = null;
+    gameState.door = null;
+    
+    document.getElementById('start-screen').classList.remove('hidden');
+    updateUI();
+}
+
+/**
+ * 更新UI显示
+ * 更新界面上的关卡、火把数量、火把时间、关卡用时和钥匙状态显示
+ */
+function updateUI() {
+    // 显示当前关卡
+    document.getElementById('level-count').textContent = gameState.currentLevel;
+    
+    // 显示火把数量
+    document.getElementById('torch-count').textContent = gameState.player.torches;
+    
+    // 确保火把时间不显示为负数，最低显示为0
+    const displayTime = Math.max(0, Math.ceil(gameState.player.torchTime));
+    document.getElementById('torch-time').textContent = displayTime;
+    
+    // 显示关卡用时，精确到整数
+    const formattedElapsedTime = Math.floor(Math.max(0, gameState.elapsedTime));
+    document.getElementById('level-time').textContent = formattedElapsedTime;
+    
+    // 显示钥匙状态
+    document.getElementById('key-status').textContent = gameState.player.hasKey ? '已找到' : '未找到';
+}
+// 道具渲染和生成模块
+
+
+
+
+
+// 生成门
+function generateDoor() {
+    const possibleDoorPositions = [];
+    
+    // 遍历迷宫，寻找可能的门位置
+    for (let y = 1; y < CONFIG.MAZE_HEIGHT - 1; y++) {
+        for (let x = 1; x < CONFIG.MAZE_WIDTH - 1; x++) {
+            // 门必须在墙壁上
+            if (gameState.maze[y][x] === 1) {
+                // 检查门是否连接两个通道
+                // 门可以是水平或垂直方向
+                const isHorizontalDoor = gameState.maze[y][x-1] === 0 && gameState.maze[y][x+1] === 0;
+                const isVerticalDoor = gameState.maze[y-1][x] === 0 && gameState.maze[y+1][x] === 0;
+                
+                if (isHorizontalDoor || isVerticalDoor) {
+                    possibleDoorPositions.push({ x, y });
+                }
+            }
+        }
+    }
+    
+    // 如果没有找到合适的位置，就在外围墙壁生成
+    if (possibleDoorPositions.length === 0) {
+        const side = Math.floor(Math.random() * 4);
+        let doorX, doorY;
+        
+        switch(side) {
+            case 0: // 上边界
+                doorX = Math.floor(Math.random() * (CONFIG.MAZE_WIDTH - 2)) + 1;
+                doorY = 0;
+                break;
+            case 1: // 右边界
+                doorX = CONFIG.MAZE_WIDTH - 1;
+                doorY = Math.floor(Math.random() * (CONFIG.MAZE_HEIGHT - 2)) + 1;
+                break;
+            case 2: // 下边界
+                doorX = Math.floor(Math.random() * (CONFIG.MAZE_WIDTH - 2)) + 1;
+                doorY = CONFIG.MAZE_HEIGHT - 1;
+                break;
+            case 3: // 左边界
+                doorX = 0;
+                doorY = Math.floor(Math.random() * (CONFIG.MAZE_HEIGHT - 2)) + 1;
+                break;
+        }
+        
+        gameState.door = { x: doorX, y: doorY };
+    } else {
+        // 从可能的位置中随机选择一个
+        const randomIndex = Math.floor(Math.random() * possibleDoorPositions.length);
+        gameState.door = possibleDoorPositions[randomIndex];
+    }
+    
+    // 门的位置设为通路
+    gameState.maze[gameState.door.y][gameState.door.x] = 0;
+}
+
+// 生成钥匙
+function generateKey() {
+    // 生成钥匙（在迷宫内部随机位置）
+    let keyX, keyY;
+    do {
+        keyX = Math.floor(Math.random() * CONFIG.MAZE_WIDTH);
+        keyY = Math.floor(Math.random() * CONFIG.MAZE_HEIGHT);
+    } while (gameState.maze[keyY][keyX] === 1 || (keyX === 1 && keyY === 1) || 
+             (gameState.door && keyX === gameState.door.x && keyY === gameState.door.y)); // 确保在通路上、不在起点且不与门重叠
+    
+    gameState.key = { 
+        x: keyX * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2, 
+        y: keyY * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2 
+    };
+}
+
+// 检查火把位置是否与墙壁重叠（包括火焰范围）
+function isTorchPositionValid(torchX, torchY) {
+    // 火把尺寸：柄宽6px，高20px；顶部宽10px，高5px；火焰高15px
+    // 火把总高度：20px（柄）+ 5px（顶部）+ 15px（火焰）= 40px
+    // 火把总宽度：10px（顶部最宽部分）
+    
+    const torchWidth = 10;  // 火把顶部宽度
+    const torchHeight = 40; // 火把总高度（柄+顶部+火焰）
+    
+    // 计算火把的边界框
+    const torchLeft = torchX - torchWidth / 2;
+    const torchRight = torchX + torchWidth / 2;
+    const torchTop = torchY - torchHeight;
+    const torchBottom = torchY;
+    
+    // 将边界框转换为网格坐标
+    const gridLeft = Math.floor(torchLeft / CONFIG.TILE_SIZE);
+    const gridRight = Math.floor(torchRight / CONFIG.TILE_SIZE);
+    const gridTop = Math.floor(torchTop / CONFIG.TILE_SIZE);
+    const gridBottom = Math.floor(torchBottom / CONFIG.TILE_SIZE);
+    
+    // 检查边界框内的所有网格单元
+    for (let y = gridTop; y <= gridBottom; y++) {
+        for (let x = gridLeft; x <= gridRight; x++) {
+            // 检查网格是否在迷宫范围内
+            if (x >= 0 && x < CONFIG.MAZE_WIDTH && y >= 0 && y < CONFIG.MAZE_HEIGHT) {
+                // 如果网格是墙壁，则火把位置无效
+                if (gameState.maze[y][x] === 1) {
+                    return false;
+                }
+            }
+        }
+    }
+    
+    return true;
+}
+
+// 生成道具（火把和钥匙）
+function spawnItems(torchCount = null) {
+    // 生成钥匙
+    generateKey();
+    
+    // 生成火把
+    const torches = [];
+    const possibleTorchPositions = [];
+    
+    // 收集所有可能生成火把的位置（通路，非起点，非门位置，且不与墙壁重叠）
+    for (let y = 0; y < CONFIG.MAZE_HEIGHT; y++) {
+        for (let x = 0; x < CONFIG.MAZE_WIDTH; x++) {
+            if (gameState.maze[y][x] === 0) {
+                // 不在起点和门的位置生成火把
+                if (!((x === 1 && y === 1) || (x === gameState.door.x && y === gameState.door.y))) {
+                    const torchX = x * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2;
+                    const torchY = y * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2;
+                    
+                    // 检查火把位置是否有效（不与墙壁重叠）
+                    if (isTorchPositionValid(torchX, torchY)) {
+                        possibleTorchPositions.push({
+                            x: torchX,
+                            y: torchY
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    // 随机打乱位置列表
+    for (let i = possibleTorchPositions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [possibleTorchPositions[i], possibleTorchPositions[j]] = [possibleTorchPositions[j], possibleTorchPositions[i]];
+    }
+    
+    // 如果未指定火把数量，则根据当前关卡获取对应的火把数量，关卡越难火把越少
+    if (torchCount === null) {
+        torchCount = CONFIG.TORCH_COUNT_BY_LEVEL[gameState.currentLevel] || CONFIG.DEFAULT_TORCH_COUNT;
+    }
+    
+    const finalTorchCount = Math.min(torchCount, possibleTorchPositions.length);
+    for (let i = 0; i < finalTorchCount; i++) {
+        torches.push(possibleTorchPositions[i]);
+    }
+    
+    gameState.torches = torches;
+}
+
+// 渲染道具
+function renderItems(ctx) {
+    // 渲染火把（与玩家手持火把大小一致，但未点燃）
+    for (const torch of gameState.torches) {
+        // 火把木柄（添加木纹细节）
+        ctx.fillStyle = COLORS.TORCH_HANDLE;
+        ctx.fillRect(torch.x - 3, torch.y - 5, 6, 20);
+        
+        // 添加木纹效果
+        ctx.strokeStyle = COLORS.TORCH_WOOD_GRAIN; // 深色木纹
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(torch.x - 2, torch.y - 3);
+        ctx.lineTo(torch.x - 2, torch.y + 15);
+        ctx.moveTo(torch.x + 2, torch.y - 3);
+        ctx.lineTo(torch.x + 2, torch.y + 15);
+        ctx.stroke();
+        
+        // 火把顶部（未点燃状态，添加更多细节）
+        ctx.fillStyle = COLORS.TORCH_HEAD_UNLIT;
+        ctx.beginPath();
+        ctx.moveTo(torch.x - 5, torch.y - 5);
+        ctx.lineTo(torch.x - 4, torch.y - 10);
+        ctx.lineTo(torch.x + 4, torch.y - 10);
+        ctx.lineTo(torch.x + 5, torch.y - 5);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 添加顶部细节纹理
+        ctx.fillStyle = COLORS.TORCH_TEXTURE; // 深色纹理
+        ctx.beginPath();
+        ctx.arc(torch.x, torch.y - 7, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 添加缠绕物细节
+        ctx.strokeStyle = COLORS.TORCH_WRAP; // 棕色缠绕物
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(torch.x - 3, torch.y);
+        ctx.lineTo(torch.x + 3, torch.y);
+        ctx.moveTo(torch.x - 3, torch.y + 5);
+        ctx.lineTo(torch.x + 3, torch.y + 5);
+        ctx.moveTo(torch.x - 3, torch.y + 10);
+        ctx.lineTo(torch.x + 3, torch.y + 10);
+        ctx.stroke();
+        
+        // 迷宫中的火把没有火焰（未点燃）
+    }
+    
+    // 渲染钥匙（连续钥匙杆设计）
+    if (gameState.key) {
+        const key = gameState.key;
+        const keySize = CONFIG.TILE_SIZE * 0.6;
+        
+        // 设置钥匙颜色
+        ctx.fillStyle = COLORS.KEY;
+        
+        // 钥匙环（矩形外框）
+        const ringWidth = keySize * 0.7;
+        const ringHeight = keySize * 0.3;
+        const ringX = key.x - ringWidth / 2;
+        const ringY = key.y - keySize * 0.6;
+        
+        // 绘制钥匙环外框
+        ctx.fillRect(ringX, ringY, ringWidth, ringHeight);
+        
+        // 钥匙环内部空心
+        const holeWidth = ringWidth * 0.6;
+        const holeHeight = ringHeight * 0.6;
+        const holeX = key.x - holeWidth / 2;
+        const holeY = ringY + (ringHeight - holeHeight) / 2;
+        ctx.fillStyle = COLORS.BACKGROUND_BLACK;
+        ctx.fillRect(holeX, holeY, holeWidth, holeHeight);
+        
+        // 恢复钥匙颜色
+        ctx.fillStyle = COLORS.KEY;
+        
+        // 连续的钥匙杆（从钥匙环底部一直延伸到钥匙尖端）
+        const keyShankWidth = keySize * 0.2;
+        const keyShankHeight = keySize * 1.2;
+        const keyShankX = key.x - keyShankWidth / 2;
+        const keyShankY = ringY + ringHeight;
+        ctx.fillRect(keyShankX, keyShankY, keyShankWidth, keyShankHeight);
+        
+        // 钥匙齿部（只在右侧，连接在钥匙杆上）
+        const teethWidth = keySize * 0.4;
+        const teethHeight = keySize * 0.2;
+        const teethX = keyShankX + keyShankWidth; // 连接在钥匙杆的右侧边缘
+        const teethY = keyShankY + keyShankHeight * 0.7;
+        ctx.fillRect(teethX, teethY, teethWidth, teethHeight);
+    }
+}
+
+// 更新火把燃烧时间
+function updateTorchTime(deltaTime, ctx) {
+    const player = gameState.player;
+    
+    // 只有当玩家开始移动后，才开始倒计时火把时间
+    if (gameState.hasStartedMoving) {
+        // 减少火把燃烧时间（基于时间的减少）
+        player.torchTime -= deltaTime / 1000; // 每秒减少1秒
+        
+        // 确保火把时间不会小于0
+        player.torchTime = Math.max(0, player.torchTime);
+        
+        // 更新UI
+        updateUI();
+        
+        // 当当前火把时间用完时
+        if (player.torchTime <= 0) {
+            // 如果还有备用火把，切换到下一个
+            if (player.torches > 1) {
+                player.torches--;
+                player.torchTime = CONFIG.TORCH_BURN_TIME;
+            } else {
+                // 没有备用火把，游戏结束
+                // 将火把数量和火把寿命都设置为0
+                player.torches = 0;
+                player.torchTime = 0;
+                
+                // 更新UI显示
+                updateUI();
+                
+                // 立即调用showMazeFullView，不使用setTimeout
+                showMazeFullView();
+                
+                // 直接显示失败对话框，不需要等待用户交互
+                setTimeout(async () => {
+                    await showCustomDialog('游戏结束', '火把熄灭了！你迷失在黑暗中...', false);
+                    restartGame();
+                }, 100);
+            }
+        }
+    }
+}
+/**
+ * 主游戏文件，整合所有模块
+ * 负责游戏初始化、主循环、事件处理和游戏状态管理
+ */
+
+
+
+
+
+
+// 画布和上下文
+let canvas, ctx;
+
+// 当前难度设置
+let currentDifficulty = ENUMS.DIFFICULTY_LEVELS.MEDIUM;
+let lastSelectedDifficulty = ENUMS.DIFFICULTY_LEVELS.MEDIUM; // 记录最近选择的难度
+let customSettings = null;
+
+/**
+ * 初始化游戏
+ * 设置画布、事件监听器和UI元素
+ */
+function initGame() {
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+    
+    // 设置画布实际尺寸
+    canvas.width = CONFIG.CANVAS_WIDTH;
+    canvas.height = CONFIG.CANVAS_HEIGHT;
+    
+    // 响应式调整
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // 键盘事件监听
+    document.addEventListener('keydown', (e) => {
+        keysPressed[e.key.toLowerCase()] = true;
+    });
+    
+    document.addEventListener('keyup', (e) => {
+        keysPressed[e.key.toLowerCase()] = false;
+    });
+    
+    // 开始按钮事件
+    document.getElementById('start-button').addEventListener('click', startGame);
+    
+    // 难度选择按钮事件
+    setupDifficultySelection();
+    
+    // 设置中等难度为默认选中
+    const mediumButton = document.querySelector('.difficulty-button[data-difficulty="medium"]');
+    if (mediumButton) {
+        mediumButton.classList.add('selected');
+    }
+    
+    // 游戏控制按钮事件
+    setupGameControls();
+    
+    // 初始化UI显示值
+    document.getElementById('torch-time').textContent = CONFIG.TORCH_BURN_TIME;
+    
+    // 初始化自定义对话框
+    initCustomDialog();
+    
+    // 游戏主循环
+    gameLoop();
+}
+
+/**
+ * 设置难度选择
+ * 处理难度选择按钮的点击事件和自定义设置
+ */
+function setupDifficultySelection() {
+    // 获取难度选择按钮
+    const difficultyButtons = document.querySelectorAll('.difficulty-button');
+    
+    // 为每个按钮添加点击事件
+    difficultyButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // 移除所有按钮的选中状态
+            difficultyButtons.forEach(btn => btn.classList.remove('selected'));
+            
+            // 添加当前按钮的选中状态
+            button.classList.add('selected');
+            
+            // 获取选择的难度
+            const difficulty = button.dataset.difficulty;
+            currentDifficulty = difficulty;
+            
+            // 记录最近选择的非自定义难度
+            if (difficulty !== ENUMS.DIFFICULTY_LEVELS.CUSTOM) {
+                lastSelectedDifficulty = difficulty;
+            }
+            
+            // 显示或隐藏自定义设置
+            const customSettingsDiv = document.getElementById('custom-settings');
+            if (difficulty === 'custom') {
+                customSettingsDiv.classList.remove('hidden');
+                // 初始化自定义设置为最近选择的难度参数
+                initializeCustomSettings(lastSelectedDifficulty);
+            } else {
+                customSettingsDiv.classList.add('hidden');
+            }
+        });
+    });
+    
+    // 所有滑块更新显示值
+    const sliders = [
+        { slider: 'custom-initial-torches', value: 'initial-torches-value' },
+        { slider: 'custom-maze-torches', value: 'maze-torches-value' },
+        { slider: 'custom-maze-width', value: 'maze-width-value' },
+        { slider: 'custom-maze-height', value: 'maze-height-value' },
+        { slider: 'custom-light-radius', value: 'light-radius-value' },
+        { slider: 'custom-torch-time', value: 'torch-time-value' },
+        { slider: 'custom-loop-rate', value: 'loop-rate-value' }
+    ];
+    
+    sliders.forEach(({ slider, value }) => {
+        const sliderElement = document.getElementById(slider);
+        const valueElement = document.getElementById(value);
+        
+        sliderElement.addEventListener('input', () => {
+            valueElement.textContent = sliderElement.value;
+        });
+        
+        // 初始化显示值
+        valueElement.textContent = sliderElement.value;
+    });
+}
+
+/**
+ * 初始化自定义设置为指定难度的参数
+ * @param {string} difficulty - 难度级别 (easy/medium/hard)
+ */
+function initializeCustomSettings(difficulty) {
+    const config = DIFFICULTY_CONFIG[difficulty];
+    if (!config) return;
+    
+    // 设置各个滑块的值
+    document.getElementById('custom-initial-torches').value = config.initialTorches;
+    document.getElementById('initial-torches-value').textContent = config.initialTorches;
+    
+    document.getElementById('custom-maze-torches').value = config.mazeTorches;
+    document.getElementById('maze-torches-value').textContent = config.mazeTorches;
+    
+    document.getElementById('custom-maze-width').value = config.mazeWidth;
+    document.getElementById('maze-width-value').textContent = config.mazeWidth;
+    
+    document.getElementById('custom-maze-height').value = config.mazeHeight;
+    document.getElementById('maze-height-value').textContent = config.mazeHeight;
+    
+    document.getElementById('custom-light-radius').value = config.torchLightRadius;
+    document.getElementById('light-radius-value').textContent = config.torchLightRadius;
+    
+    document.getElementById('custom-torch-time').value = config.torchBurnTime;
+    document.getElementById('torch-time-value').textContent = config.torchBurnTime;
+    
+    document.getElementById('custom-loop-rate').value = config.loopGenerationRate * 100; // 转换为百分比显示
+    document.getElementById('loop-rate-value').textContent = config.loopGenerationRate * 100;
+}
+
+// 默认选择中等难度
+document.querySelector('[data-difficulty="medium"]').click();
+
+
+/**
+ * 获取当前游戏设置
+ * 根据选择的难度级别返回相应的游戏配置参数
+ * @returns {Object} 包含游戏设置的对象
+ */
+function getCurrentGameSettings() {
+    // 如果是自定义难度，从表单中获取设置
+    if (currentDifficulty === ENUMS.DIFFICULTY_LEVELS.CUSTOM) {
+        const initialTorches = parseInt(document.getElementById('custom-initial-torches').value);
+        const mazeTorches = parseInt(document.getElementById('custom-maze-torches').value);
+        const mazeWidth = parseInt(document.getElementById('custom-maze-width').value);
+        const mazeHeight = parseInt(document.getElementById('custom-maze-height').value);
+        const torchLightRadius = parseInt(document.getElementById('custom-light-radius').value);
+        const torchBurnTime = parseInt(document.getElementById('custom-torch-time').value);
+        const loopGenerationRate = parseInt(document.getElementById('custom-loop-rate').value) / 100; // 转换为小数
+        
+        return {
+            initialTorches,
+            mazeTorches,
+            mazeWidth,
+            mazeHeight,
+            torchLightRadius,
+            torchBurnTime,
+            loopGenerationRate
+        };
+    } else {
+        // 否则使用预设的难度配置
+        return DIFFICULTY_CONFIG[currentDifficulty];
+    }
+}
+
+/**
+ * 响应式调整画布大小
+ * 确保画布显示尺寸与实际尺寸一致
+ */
+function resizeCanvas() {
+    // 画布尺寸固定，不进行缩放
+    // 确保画布显示尺寸与实际尺寸一致
+    canvas.style.width = CONFIG.CANVAS_WIDTH + 'px';
+    canvas.style.height = CONFIG.CANVAS_HEIGHT + 'px';
+    canvas.style.transform = 'none';
+}
+
+/**
+ * 开始游戏
+ * 初始化游戏状态，生成迷宫和道具，启动游戏循环
+ */
+function startGame() {
+    document.getElementById('start-screen').classList.add('hidden');
+    
+    // 获取当前难度设置
+    const gameSettings = getCurrentGameSettings();
+    
+    // 重置游戏状态
+    gameState.hasStartedMoving = false; // 初始时不计时，直到玩家开始移动
+    gameState.showFullMaze = false; // 重置迷宫全貌显示标志
+    gameState.startTime = performance.now(); // 记录关卡开始时间
+    gameState.moveStartTime = 0; // 重置玩家开始移动的时间
+    gameState.elapsedTime = 0; // 重置关卡用时
+    
+    // 更新CONFIG中的游戏参数
+    CONFIG.INITIAL_TORCHES = gameSettings.initialTorches;
+    CONFIG.TORCH_BURN_TIME = gameSettings.torchBurnTime;
+    CONFIG.TORCH_LIGHT_RADIUS = gameSettings.torchLightRadius;
+    CONFIG.MAZE_WIDTH = gameSettings.mazeWidth;
+    CONFIG.MAZE_HEIGHT = gameSettings.mazeHeight;
+    CONFIG.LOOP_GENERATION_RATE = gameSettings.loopGenerationRate;
+    
+    // 设置画布尺寸以适应新的迷宫尺寸
+    resizeCanvasForMaze();
+    
+    // 重置玩家状态（包括火把时间）
+    gameState.player.torches = CONFIG.INITIAL_TORCHES;
+    gameState.player.torchTime = CONFIG.TORCH_BURN_TIME;
+    gameState.player.hasKey = false;
+    
+    // 生成新迷宫（包括设置玩家初始位置）
+    generateMaze();
+    
+    // 生成门
+    generateDoor();
+    
+    // 生成道具（火把和钥匙）
+    spawnItems(gameSettings.mazeTorches);
+    
+    // 确保玩家位置已正确设置
+    console.log("游戏开始时玩家位置:", gameState.player.x, gameState.player.y);
+    
+    // 更新状态栏的难度参数显示
+    updateDifficultyDisplay(gameSettings);
+    
+    // 最后设置游戏状态为正在播放
+    gameState.isPlaying = true;
+    
+    // 启动游戏循环
+    startGameLoop();
+    
+    // 更新UI
+    updateUI();
+}
+
+/**
+ * 调整画布大小以适应迷宫尺寸
+ * 根据迷宫的宽度和高度调整画布尺寸，如果迷宫太大则等比例缩小
+ * 优化显示范围，使其更充分利用屏幕空间，确保操作按钮和状态栏始终可见
+ */
+function resizeCanvasForMaze() {
+    // 计算原始迷宫尺寸
+    const originalWidth = CONFIG.MAZE_WIDTH * CONFIG.TILE_SIZE;
+    const originalHeight = CONFIG.MAZE_HEIGHT * CONFIG.TILE_SIZE;
+    
+    // 获取左侧控制按钮区域实际宽度
+    const controlsElement = document.getElementById('game-controls');
+    const controlsWidth = controlsElement ? controlsElement.offsetWidth : 120; // 默认120px
+    
+    // 获取右侧状态显示区域实际宽度
+    const uiElement = document.getElementById('ui');
+    const uiWidth = uiElement ? uiElement.offsetWidth : 120; // 默认120px
+    
+    // 计算可用显示区域，确保UI元素完全可见
+    // 使用更小的边距，最大化迷宫显示区域
+    const horizontalMargin = 5; // 水平边距5px
+    const verticalMargin = 5;   // 垂直边距5px
+    
+    // 计算可用宽度和高度（考虑左右两侧UI元素）
+    const availableWidth = window.innerWidth - controlsWidth - uiWidth - (horizontalMargin * 2);
+    const availableHeight = window.innerHeight - (verticalMargin * 2);
+    
+    // 计算缩放比例
+    let scale = 1;
+    if (originalWidth > availableWidth || originalHeight > availableHeight) {
+        // 计算两个方向的缩放比例，取较小值确保完整显示
+        const scaleX = availableWidth / originalWidth;
+        const scaleY = availableHeight / originalHeight;
+        scale = Math.min(scaleX, scaleY, 1); // 不放大，只缩小
+    }
+    
+    // 计算缩放后的画布尺寸
+    const scaledWidth = Math.floor(originalWidth * scale);
+    const scaledHeight = Math.floor(originalHeight * scale);
+    
+    // 更新CONFIG中的画布尺寸
+    CONFIG.CANVAS_WIDTH = originalWidth; // 保存原始尺寸用于渲染计算
+    CONFIG.CANVAS_HEIGHT = originalHeight;
+    CONFIG.SCALE_FACTOR = scale; // 添加缩放因子
+    
+    // 设置画布实际尺寸（使用原始尺寸）
+    canvas.width = originalWidth;
+    canvas.height = originalHeight;
+    
+    // 设置画布显示尺寸（使用缩放后尺寸）
+    canvas.style.width = scaledWidth + 'px';
+    canvas.style.height = scaledHeight + 'px';
+    
+    // 更新游戏区域容器尺寸
+    const gameArea = document.getElementById('game-area');
+    gameArea.style.width = scaledWidth + 'px';
+    gameArea.style.height = scaledHeight + 'px';
+    
+    // 游戏容器样式已在CSS中设置，不需要在这里修改
+    // 保持游戏容器的默认布局，确保元素紧贴排列
+    
+    // 确保UI元素始终可见
+    if (uiElement) {
+        uiElement.style.position = 'relative';
+        uiElement.style.zIndex = '10';
+    }
+    
+    if (controlsElement) {
+        controlsElement.style.position = 'relative';
+        controlsElement.style.zIndex = '10';
+    }
+}
+
+// 更新状态栏的难度参数显示
+function updateDifficultyDisplay(gameSettings) {
+    // 更新难度显示
+    const difficultyNames = {
+        easy: '简单',
+        medium: '中等',
+        hard: '困难',
+        custom: '自定义'
+    };
+    document.getElementById('difficulty-display').textContent = difficultyNames[currentDifficulty];
+    
+    // 更新迷宫尺寸显示
+    document.getElementById('maze-size-display').textContent = `${gameSettings.mazeWidth}×${gameSettings.mazeHeight}`;
+    
+    // 更新照明半径显示
+    document.getElementById('light-radius-display').textContent = gameSettings.torchLightRadius;
+}
+
+// 设置游戏控制按钮
+function setupGameControls() {
+    // 重新开始按钮
+    document.getElementById('restart-button').addEventListener('click', restartCurrentGame);
+    
+    // 返回主界面按钮
+    document.getElementById('back-to-main-button').addEventListener('click', backToMainMenu);
+}
+
+
+
+
+
+// 重新开始游戏
+async function restartCurrentGame() {
+    const confirmed = await showCustomDialog('重新开始', '确定要重新开始当前游戏吗？');
+    if (confirmed) {
+        // 停止当前游戏
+        if (gameLoopId) {
+            cancelAnimationFrame(gameLoopId);
+            gameLoopId = null;
+        }
+        
+        // 重新开始游戏
+        startGame();
+    }
+}
+
+// 返回主界面
+async function backToMainMenu() {
+    const confirmed = await showCustomDialog('返回主界面', '确定要返回主界面吗？当前游戏进度将丢失。');
+    if (confirmed) {
+        // 停止当前游戏
+        if (gameLoopId) {
+            cancelAnimationFrame(gameLoopId);
+            gameLoopId = null;
+        }
+        
+        // 重置游戏状态
+        gameState.isPlaying = false;
+        
+        // 显示主界面
+        document.getElementById('start-screen').classList.remove('hidden');
+    }
+}
+
+// 更新游戏状态
+function update(deltaTime) {
+    if (!gameState.isPlaying) return;
+    
+    // 计算当前关卡用时（秒）- 从玩家第一次按下方向键开始计时
+    const currentTime = performance.now();
+    if (gameState.hasStartedMoving) {
+        gameState.elapsedTime = (currentTime - gameState.moveStartTime) / 1000;
+    } else {
+        gameState.elapsedTime = 0;
+    }
+    
+    updatePlayer(deltaTime, ctx);
+    updateTorchTime(deltaTime, ctx);
+    
+    // 更新UI，包括关卡用时
+    updateUI();
+}
+
+
+
+// 渲染游戏
+function render() {
+    // 如果游戏没有开始，不渲染游戏内容
+    if (!gameState.isPlaying) {
+        // 如果需要显示迷宫全貌，则显示迷宫全貌
+        if (gameState.showFullMaze) {
+            // 清空画布为白色背景
+            ctx.fillStyle = COLORS.BACKGROUND_WHITE;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 渲染迷宫
+            renderMaze(ctx);
+            
+            // 渲染所有道具（火把和钥匙）
+            renderItems(ctx);
+            
+            // 渲染玩家
+            renderPlayer(ctx);
+            
+            // 渲染门位置（保持原有样式）
+            if (gameState.door) {
+                // 门的边框（深色）
+                ctx.fillStyle = COLORS.DOOR;
+                ctx.fillRect(
+                    gameState.door.x * CONFIG.TILE_SIZE,
+                    gameState.door.y * CONFIG.TILE_SIZE,
+                    CONFIG.TILE_SIZE,
+                    CONFIG.TILE_SIZE
+                );
+                
+                // 门的内部（浅色）
+                ctx.fillStyle = COLORS.DOOR_INTERNAL;
+                ctx.fillRect(
+                    gameState.door.x * CONFIG.TILE_SIZE + 2,
+                    gameState.door.y * CONFIG.TILE_SIZE + 2,
+                    CONFIG.TILE_SIZE - 4,
+                    CONFIG.TILE_SIZE - 4
+                );
+                
+                // 门把手（金色）
+                ctx.fillStyle = COLORS.DOOR_HANDLE;
+                ctx.beginPath();
+                ctx.arc(
+                    gameState.door.x * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE - 8,
+                    gameState.door.y * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2,
+                    3, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        
+            return;
+        }
+        
+        // 清空画布为黑色
+        ctx.fillStyle = COLORS.BACKGROUND_BLACK;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
+    // 首先渲染所有游戏元素到临时画布，确保游戏元素可见
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // 清空临时画布为白色，这样游戏元素可见
+    tempCtx.fillStyle = COLORS.WALL;
+    tempCtx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 在临时画布上渲染所有游戏元素
+    renderMaze(tempCtx);
+    renderItems(tempCtx);
+    renderPlayer(tempCtx);
+    
+    // 清空主画布为黑色
+    ctx.fillStyle = COLORS.BACKGROUND_BLACK;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 将临时画布绘制到主画布上
+    ctx.drawImage(tempCanvas, 0, 0);
+    
+    // 只有在玩家位置有效且不需要显示迷宫全貌时才绘制照明效果
+    if (gameState.player.x > 0 && gameState.player.y > 0 && !gameState.showFullMaze) {
+        // 绘制黑色遮罩，只保留玩家周围的亮区
+        ctx.globalCompositeOperation = 'destination-out';
+        
+        // 创建径向渐变遮罩
+        const player = gameState.player;
+        const gradient = ctx.createRadialGradient(
+            player.x, player.y, 0,
+            player.x, player.y, CONFIG.TORCH_LIGHT_RADIUS
+        );
+        gradient.addColorStop(0, COLORS.MASK_CENTER); // 中心不遮罩
+        gradient.addColorStop(0.6, COLORS.MASK_MIDDLE); // 部分遮罩
+        gradient.addColorStop(1, COLORS.MASK_OUTER); // 完全遮罩
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 重置合成模式
+        ctx.globalCompositeOperation = 'source-over';
+    }
+}
+
+// 游戏主循环
+let gameLoopId = null;
+
+function gameLoop(timestamp) {
+    // 如果游戏结束，停止循环
+    if (!gameState.isPlaying) {
+        // 取消动画帧请求
+        if (gameLoopId) {
+            cancelAnimationFrame(gameLoopId);
+            gameLoopId = null;
+        }
+        
+        // 如果显示迷宫全貌，立即渲染一次
+        if (gameState.showFullMaze) {
+            render();
+        }
+        
+        return; // 停止游戏循环
+    }
+    
+    // 计算时间差
+    const deltaTime = timestamp - gameState.lastUpdateTime;
+    gameState.lastUpdateTime = timestamp;
+    
+    update(deltaTime);
+    render();
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+// 启动游戏循环
+function startGameLoop() {
+    gameState.lastUpdateTime = performance.now();
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+// 停止游戏循环
+function stopGameLoop() {
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+    }
+    gameState.isPlaying = false;
+}
+
+// 导出函数供其他模块使用
+
+
+// 自定义对话框管理
+let dialogResolve = null;
+
+// 初始化自定义对话框
+function initCustomDialog() {
+    const dialog = document.getElementById('custom-dialog');
+    const dialogContent = document.getElementById('dialog-content');
+    const dialogHeader = document.getElementById('dialog-header');
+    const dialogTitle = document.getElementById('dialog-title');
+    const dialogMessage = document.getElementById('dialog-message');
+    const dialogConfirm = document.getElementById('dialog-confirm');
+    const dialogCancel = document.getElementById('dialog-cancel');
+    const dialogClose = document.getElementById('dialog-close');
+
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    let currentMouseX = 0;
+    let currentMouseY = 0;
+    let animationFrameId = null;
+
+    // 拖拽功能
+    // 鼠标移动事件处理函数
+    const handleMouseMove = (e) => {
+        if (isDragging) {
+            // 更新当前鼠标位置
+            currentMouseX = e.clientX;
+            currentMouseY = e.clientY;
+            
+            // 如果没有动画帧在运行，启动一个
+            if (!animationFrameId) {
+                animationFrameId = requestAnimationFrame(updateDialogPosition);
+            }
+        }
+    };
+    
+    // 使用requestAnimationFrame更新对话框位置
+    const updateDialogPosition = () => {
+        if (isDragging) {
+            // 计算新位置
+            const newX = currentMouseX - dragOffsetX;
+            const newY = currentMouseY - dragOffsetY;
+            
+            // 设置对话框容器位置
+            dialog.style.left = newX + 'px';
+            dialog.style.top = newY + 'px';
+            
+            // 继续下一帧动画
+            animationFrameId = requestAnimationFrame(updateDialogPosition);
+        } else {
+            // 如果不再拖拽，取消动画帧
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+    };
+    
+    // 鼠标释放事件处理函数
+    const handleMouseUp = () => {
+        // 确保拖拽状态被重置
+        isDragging = false;
+        dialogContent.style.cursor = 'default';
+        
+        // 取消动画帧
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        
+        // 解绑所有相关事件监听器
+        document.removeEventListener('mousemove', handleMouseMove, true);
+        document.removeEventListener('mouseup', handleMouseUp, true);
+        
+        // 额外的安全措施：在捕获阶段也解绑一次
+        document.removeEventListener('mousemove', handleMouseMove, false);
+        document.removeEventListener('mouseup', handleMouseUp, false);
+    };
+    
+    dialogHeader.addEventListener('mousedown', (e) => {
+        // 阻止事件冒泡，防止对话框关闭
+        e.stopPropagation();
+        
+        // 如果已经在拖拽中，先重置
+        if (isDragging) {
+            handleMouseUp();
+        }
+        
+        // 获取对话框容器的实际位置（相对于视口）
+        const rect = dialog.getBoundingClientRect();
+        
+        // 计算鼠标相对于对话框容器左上角的偏移量
+        dragOffsetX = e.clientX - rect.left;
+        dragOffsetY = e.clientY - rect.top;
+        
+        // 设置对话框容器为fixed定位，确保拖拽时位置正确
+        dialog.style.position = 'fixed';
+        dialog.style.left = rect.left + 'px';
+        dialog.style.top = rect.top + 'px';
+        
+        // 重置transform，避免与left/top冲突
+        dialog.style.transform = 'none';
+        
+        isDragging = true;
+        dialogContent.style.cursor = 'grabbing';
+        
+        // 先解绑所有可能存在的事件监听器，避免重复绑定
+        document.removeEventListener('mousemove', handleMouseMove, true);
+        document.removeEventListener('mouseup', handleMouseUp, true);
+        document.removeEventListener('mousemove', handleMouseMove, false);
+        document.removeEventListener('mouseup', handleMouseUp, false);
+        
+        // 在捕获阶段绑定事件监听器，确保优先处理
+        document.addEventListener('mousemove', handleMouseMove, true);
+        document.addEventListener('mouseup', handleMouseUp, true);
+    });
+    
+    // 为对话框标题栏添加其他事件监听器，阻止事件冒泡
+    dialogHeader.addEventListener('mouseup', (e) => {
+        e.stopPropagation();
+    });
+    
+    dialogHeader.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // 为对话框内容添加多个事件监听器，阻止事件冒泡
+    dialogContent.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+    
+    dialogContent.addEventListener('mouseup', (e) => {
+        e.stopPropagation();
+    });
+    
+    dialogContent.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // 确认按钮
+    dialogConfirm.addEventListener('click', () => {
+        hideDialog();
+        if (dialogResolve) {
+            dialogResolve(true);
+            dialogResolve = null;
+        }
+    });
+
+    // 取消按钮
+    dialogCancel.addEventListener('click', () => {
+        hideDialog();
+        if (dialogResolve) {
+            dialogResolve(false);
+            dialogResolve = null;
+        }
+    });
+
+    // 关闭按钮
+    dialogClose.addEventListener('click', () => {
+        hideDialog();
+        if (dialogResolve) {
+            dialogResolve(false);
+            dialogResolve = null;
+        }
+    });
+
+    // 确保在对话框隐藏时重置所有状态
+    const originalHideDialog = hideDialog;
+    hideDialog = () => {
+        // 停止任何正在进行的拖拽
+        isDragging = false;
+        
+        // 解绑所有事件监听器
+        document.removeEventListener('mousemove', handleMouseMove, true);
+        document.removeEventListener('mouseup', handleMouseUp, true);
+        document.removeEventListener('mousemove', handleMouseMove, false);
+        document.removeEventListener('mouseup', handleMouseUp, false);
+        
+        // 调用原始的hideDialog函数
+        originalHideDialog();
+    };
+}
+
+// 显示自定义对话框
+function showCustomDialog(title, message, showCancel = true) {
+    return new Promise((resolve) => {
+        dialogResolve = resolve;
+        
+        const dialog = document.getElementById('custom-dialog');
+        const dialogContent = document.getElementById('dialog-content');
+        const dialogTitle = document.getElementById('dialog-title');
+        const dialogMessage = document.getElementById('dialog-message');
+        const dialogCancel = document.getElementById('dialog-cancel');
+        
+        dialogTitle.textContent = title;
+        dialogMessage.textContent = message;
+        dialogCancel.style.display = showCancel ? 'inline-block' : 'none';
+        
+        dialog.classList.remove('hidden');
+        
+        // 重置对话框容器位置到屏幕中心
+        dialog.style.position = 'fixed';
+        dialog.style.left = '50%';
+        dialog.style.top = '50%';
+        dialog.style.transform = 'translate(-50%, -50%)';
+        
+        // 重置内容元素的样式，确保它在容器内正确显示
+        dialogContent.style.position = 'relative';
+        dialogContent.style.left = 'auto';
+        dialogContent.style.top = 'auto';
+        dialogContent.style.transform = 'none';
+    });
+}
+
+// 隐藏对话框
+function hideDialog() {
+    const dialog = document.getElementById('custom-dialog');
+    dialog.classList.add('hidden');
+}
+
+// 页面加载完成后初始化游戏
+window.addEventListener('load', initGame);
+</script>
+</body>
+</html>

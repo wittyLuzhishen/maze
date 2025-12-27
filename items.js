@@ -67,7 +67,8 @@ export function generateKey() {
     do {
         keyX = Math.floor(Math.random() * CONFIG.MAZE_WIDTH);
         keyY = Math.floor(Math.random() * CONFIG.MAZE_HEIGHT);
-    } while (gameState.maze[keyY][keyX] === 1 || (keyX === 1 && keyY === 1)); // 确保在通路上且不在起点
+    } while (gameState.maze[keyY][keyX] === 1 || (keyX === 1 && keyY === 1) || 
+             (gameState.door && keyX === gameState.door.x && keyY === gameState.door.y)); // 确保在通路上、不在起点且不与门重叠
     
     gameState.key = { 
         x: keyX * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2, 
